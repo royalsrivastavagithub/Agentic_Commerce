@@ -1,31 +1,24 @@
-import json
-from pathlib import Path
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from app.schemas.product import ProductSchema, ProductsResponse
-
-DATA_DIR = Path(__file__).resolve().parents[4] / "data"
-PRODUCTS_FILE = DATA_DIR / "products.json"
+from app.db.session import get_db
+from app.models.product import Product
+from app.schemas.product import ProductSchema, ProductCreate, ProductUpdate, ProductsResponse
 
 router = APIRouter(tags=["products"])
 categories_router = APIRouter(tags=["categories"])
-
-
-def _load_products() -> list[dict]:
-    with open(PRODUCTS_FILE) as f:
-        data = json.load(f)
-    return data["products"]
 
 
 @router.get("/products", response_model=ProductsResponse)
 async def get_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
+    db: Session = Depends(get_db),
 ):
-    all_products = _load_products()
-    total = len(all_products)
-    paged = all_products[skip : skip + limit]
-    return ProductsResponse(products=paged, total=total, skip=skip, limit=limit)
+    total = db.query(Product).count()
+    products = db.query(Product).offset(skip).limit(limit).all()
+    return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
 
 
 @router.get("/products/search", response_model=ProductsResponse)
@@ -33,34 +26,84 @@ async def search_products(
     q: str = Query(..., min_length=1),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
+    db: Session = Depends(get_db),
 ):
-    all_products = _load_products()
-    q_lower = q.lower()
-    matched = [p for p in all_products if q_lower in p["title"].lower()]
-    total = len(matched)
-    paged = matched[skip : skip + limit]
-    return ProductsResponse(products=paged, total=total, skip=skip, limit=limit)
+    q_like = f"%{q}%"
+    total = db.query(Product).filter(Product.title.ilike(q_like)).count()
+    products = (
+        db.query(Product)
+        .filter(Product.title.ilike(q_like))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
 
 
 @router.get("/products/{product_id}", response_model=ProductSchema)
-async def get_product(product_id: int):
-    all_products = _load_products()
-    for p in all_products:
-        if p["id"] == product_id:
-            return p
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Product with id {product_id} not found",
-    )
+async def get_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Product with id {product_id} not found",
+        )
+    return product
+
+
+@router.post("/products", response_model=ProductSchema, status_code=status.HTTP_201_CREATED)
+async def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
+    data = product_in.model_dump(exclude_none=True)
+    try:
+        product = Product(**data)
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Product with this id or sku already exists",
+        )
+    return product
+
+
+@router.put("/products/{product_id}", response_model=ProductSchema)
+async def update_product(
+    product_id: int, product_in: ProductUpdate, db: Session = Depends(get_db)
+):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Product with id {product_id} not found",
+        )
+    update_data = product_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(product, field, value)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Product with id {product_id} not found",
+        )
+    db.delete(product)
+    db.commit()
 
 
 @categories_router.get("/categories", response_model=list[str])
-async def get_categories():
-    all_products = _load_products()
-    seen: set[str] = set()
-    for p in all_products:
-        seen.add(p["category"])
-    return sorted(seen)
+async def get_categories(db: Session = Depends(get_db)):
+    results = (
+        db.query(Product.category).distinct().order_by(Product.category).all()
+    )
+    return [r[0] for r in results]
 
 
 @categories_router.get("/categories/{category_name}", response_model=ProductsResponse)
@@ -68,14 +111,19 @@ async def get_products_by_category(
     category_name: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
+    db: Session = Depends(get_db),
 ):
-    all_products = _load_products()
-    matched = [p for p in all_products if p["category"] == category_name]
-    if not matched:
+    total = db.query(Product).filter(Product.category == category_name).count()
+    if total == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Category '{category_name}' not found",
         )
-    total = len(matched)
-    paged = matched[skip : skip + limit]
-    return ProductsResponse(products=paged, total=total, skip=skip, limit=limit)
+    products = (
+        db.query(Product)
+        .filter(Product.category == category_name)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
