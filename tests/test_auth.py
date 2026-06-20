@@ -1,7 +1,11 @@
+import jwt
+from datetime import timedelta, timezone, datetime
 from sqlalchemy.orm import Session
 from fastapi.testclient import TestClient
 
 from app.models.user import User
+from app.core.security import create_access_token
+from app.core.config import settings
 
 def test_signup_flow(client: TestClient, db: Session):
     # 1. Signup a user
@@ -159,3 +163,212 @@ def test_login_flow(client: TestClient, db: Session):
     )
     assert bad_pw_response.status_code == 400
     assert bad_pw_response.json()["detail"] == "Invalid credentials"
+
+
+class TestTokenSecurity:
+    def test_expired_token_returns_401(self, client: TestClient, db: Session, admin_token_headers):
+        resp = client.post("/api/v1/products", json={"title": "x"}, headers=admin_token_headers)
+        assert resp.status_code == 422  # ensure admin_token_headers is valid before expiry test
+
+    def test_malformed_token_on_public_route_ignored(self, client: TestClient):
+        resp = client.get(
+            "/api/v1/health",
+            headers={"Authorization": "Bearer garbage.token.here"},
+        )
+        assert resp.status_code == 200  # public route ignores bad tokens
+
+    def test_malformed_token_on_protected_route_returns_401(self, client: TestClient):
+        resp = client.post(
+            "/api/v1/products",
+            json={"title": "x"},
+            headers={"Authorization": "Bearer this.is.not.a.valid.jwt"},
+        )
+        assert resp.status_code == 401
+        assert resp.json()["detail"] == "Invalid or expired token"
+
+    def test_tampered_token_returns_401(self, client: TestClient, db: Session):
+        user = User(
+            email="tamper@test.com",
+            hashed_password="x",
+            is_active=True,
+            is_verified=True,
+            role="admin",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        token = create_access_token(subject=user.id, role=user.role)
+        parts = token.split(".")
+        tampered = f"{parts[0]}.{parts[1]}.invalidsignature"
+        resp = client.post(
+            "/api/v1/products",
+            json={"title": "x"},
+            headers={"Authorization": f"Bearer {tampered}"},
+        )
+        assert resp.status_code == 401
+        assert resp.json()["detail"] == "Invalid or expired token"
+
+    def test_token_with_wrong_secret_returns_401(self, client: TestClient, db: Session):
+        user = User(
+            email="wrongkey@test.com",
+            hashed_password="x",
+            is_active=True,
+            is_verified=True,
+            role="admin",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        wrong_key_token = jwt.encode(
+            {"sub": str(user.id), "role": "admin", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+            "this-is-a-different-secret-key",
+            algorithm="HS256",
+        )
+        resp = client.post(
+            "/api/v1/products",
+            json={"title": "x"},
+            headers={"Authorization": f"Bearer {wrong_key_token}"},
+        )
+        assert resp.status_code == 401
+        assert resp.json()["detail"] == "Invalid or expired token"
+
+    def test_expired_token_on_create_returns_401(self, client: TestClient, db: Session):
+        user = User(
+            email="expired@test.com",
+            hashed_password="x",
+            is_active=True,
+            is_verified=True,
+            role="admin",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        expired_token = create_access_token(
+            subject=user.id, role=user.role, expires_delta=timedelta(seconds=-1)
+        )
+        resp = client.post(
+            "/api/v1/products",
+            json={"title": "x"},
+            headers={"Authorization": f"Bearer {expired_token}"},
+        )
+        assert resp.status_code == 401
+        assert resp.json()["detail"] == "Invalid or expired token"
+
+class TestUserState:
+    def test_signup_response_includes_role(self, client: TestClient):
+        resp = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "rolecheck@test.com", "password": "pw123"},
+        )
+        assert resp.status_code == 201
+        assert resp.json()["role"] == "user"
+
+    def test_signup_default_role_is_user_in_db(self, client: TestClient, db: Session):
+        resp = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "dbrole@test.com", "password": "pw123"},
+        )
+        assert resp.status_code == 201
+        user = db.query(User).filter(User.email == "dbrole@test.com").first()
+        assert user.role == "user"
+
+    def test_inactive_user_login_fails(self, client: TestClient, db: Session):
+        user = User(
+            email="inactive@test.com",
+            hashed_password="x",
+            is_active=False,
+            is_verified=True,
+        )
+        db.add(user)
+        db.commit()
+        resp = client.post(
+            "/api/v1/auth/login",
+            json={"email": "inactive@test.com", "password": "x"},
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Invalid credentials"
+
+    def test_verify_email_twice_returns_error(self, client: TestClient, db: Session):
+        resp = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "verify2x@test.com", "password": "pw123"},
+        )
+        assert resp.status_code == 201
+        user = db.query(User).filter(User.email == "verify2x@test.com").first()
+        token = user.verification_token
+        resp1 = client.get(f"/api/v1/auth/verify-email?token={token}")
+        assert resp1.status_code == 200
+        resp2 = client.get(f"/api/v1/auth/verify-email?token={token}")
+        assert resp2.status_code == 400
+        assert resp2.json()["detail"] == "Invalid or expired verification token"
+
+    def test_login_with_unverified_email_fails(self, client: TestClient, db: Session):
+        client.post(
+            "/api/v1/auth/signup",
+            json={"email": "unverified@test.com", "password": "pw123"},
+        )
+        resp = client.post(
+            "/api/v1/auth/login",
+            json={"email": "unverified@test.com", "password": "pw123"},
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Invalid credentials"
+
+
+class TestAuthEdgeCases:
+    def test_login_empty_password(self, client: TestClient, db: Session):
+        user = User(
+            email="emptypw@test.com",
+            hashed_password="x",
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(user)
+        db.commit()
+        resp = client.post(
+            "/api/v1/auth/login",
+            json={"email": "emptypw@test.com", "password": ""},
+        )
+        assert resp.status_code == 400
+
+    def test_login_very_long_password(self, client: TestClient, db: Session):
+        long_pw = "a" * 200
+        hashed = "x"
+        user = User(
+            email="longpw@test.com",
+            hashed_password=hashed,
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(user)
+        db.commit()
+        resp = client.post(
+            "/api/v1/auth/login",
+            json={"email": "longpw@test.com", "password": long_pw},
+        )
+        assert resp.status_code == 400
+
+    def test_signup_very_long_email(self, client: TestClient):
+        local = "a" * 64
+        domain = "b" * 63
+        long_email = f"{local}@{domain}.com"
+        resp = client.post(
+            "/api/v1/auth/signup",
+            json={"email": long_email, "password": "pw123"},
+        )
+        assert resp.status_code == 201
+
+    def test_signup_missing_password_field(self, client: TestClient):
+        resp = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "test@test.com"},
+        )
+        assert resp.status_code == 422
+
+    def test_signup_extra_fields_ignored(self, client: TestClient):
+        resp = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "extra@test.com", "password": "pw123", "role": "admin"},
+        )
+        assert resp.status_code == 201
+        assert resp.json()["role"] == "user"

@@ -1,7 +1,11 @@
+import jwt
+from datetime import timedelta, timezone, datetime
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.product import Product
+from app.models.user import User
+from app.core.security import create_access_token
 
 
 SAMPLE_PRODUCT = {
@@ -448,3 +452,292 @@ class TestProductInDB:
         client.delete(f"/api/v1/products/{pid}", headers=admin_token_headers)
         db_product = db.query(Product).filter(Product.id == pid).first()
         assert db_product is None
+
+
+class TestAuthzExtended:
+    def test_delete_with_user_role_returns_403(self, client: TestClient, admin_token_headers, user_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        resp = client.delete(
+            f"/api/v1/products/{created['id']}",
+            headers=user_token_headers,
+        )
+        assert resp.status_code == 403
+
+    def test_expired_admin_token_on_create_returns_401(self, client: TestClient, db: Session):
+        admin = User(
+            email="exp-admin@test.com",
+            hashed_password="x",
+            is_active=True,
+            is_verified=True,
+            role="admin",
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+        expired = create_access_token(
+            subject=admin.id, role=admin.role, expires_delta=timedelta(seconds=-1)
+        )
+        resp = client.post(
+            "/api/v1/products",
+            json=SAMPLE_PRODUCT,
+            headers={"Authorization": f"Bearer {expired}"},
+        )
+        assert resp.status_code == 401
+
+    def test_expired_admin_token_on_update_returns_401(self, client: TestClient, db: Session, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        admin = User(
+            email="exp-admin2@test.com",
+            hashed_password="x",
+            is_active=True,
+            is_verified=True,
+            role="admin",
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+        expired = create_access_token(
+            subject=admin.id, role=admin.role, expires_delta=timedelta(seconds=-1)
+        )
+        resp = client.put(
+            f"/api/v1/products/{created['id']}",
+            json={"title": "nope"},
+            headers={"Authorization": f"Bearer {expired}"},
+        )
+        assert resp.status_code == 401
+
+    def test_expired_admin_token_on_delete_returns_401(self, client: TestClient, db: Session, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        admin = User(
+            email="exp-admin3@test.com",
+            hashed_password="x",
+            is_active=True,
+            is_verified=True,
+            role="admin",
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+        expired = create_access_token(
+            subject=admin.id, role=admin.role, expires_delta=timedelta(seconds=-1)
+        )
+        resp = client.delete(
+            f"/api/v1/products/{created['id']}",
+            headers={"Authorization": f"Bearer {expired}"},
+        )
+        assert resp.status_code == 401
+
+    def test_malformed_token_on_delete_returns_401(self, client: TestClient, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        resp = client.delete(
+            f"/api/v1/products/{created['id']}",
+            headers={"Authorization": "Bearer garbage.invalid.token"},
+        )
+        assert resp.status_code == 401
+
+    def test_malformed_token_on_update_returns_401(self, client: TestClient, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        resp = client.put(
+            f"/api/v1/products/{created['id']}",
+            json={"title": "nope"},
+            headers={"Authorization": "Bearer garbage.invalid.token"},
+        )
+        assert resp.status_code == 401
+
+
+class TestCreateProductEdgeCases:
+    def test_create_with_empty_tags(self, client: TestClient, admin_token_headers):
+        data = {**SAMPLE_PRODUCT, "sku": "TST-EMPTYTAGS", "tags": []}
+        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        assert resp.status_code == 201
+        assert resp.json()["tags"] == []
+
+    def test_create_zero_price(self, client: TestClient, admin_token_headers):
+        data = {**SAMPLE_PRODUCT, "sku": "TST-ZEROPRICE", "price": 0.0}
+        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        assert resp.status_code == 201
+        assert resp.json()["price"] == 0.0
+
+    def test_create_zero_stock(self, client: TestClient, admin_token_headers):
+        data = {**SAMPLE_PRODUCT, "sku": "TST-ZEROSTOCK", "stock": 0}
+        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        assert resp.status_code == 201
+        assert resp.json()["stock"] == 0
+
+    def test_create_negative_stock(self, client: TestClient, admin_token_headers):
+        data = {**SAMPLE_PRODUCT, "sku": "TST-NEGSTOCK", "stock": -5}
+        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        assert resp.status_code == 201
+
+    def test_create_max_integers(self, client: TestClient, admin_token_headers):
+        data = {
+            **SAMPLE_PRODUCT,
+            "sku": "TST-MAXINT",
+            "price": 999999.99,
+            "stock": 2**31 - 1,
+            "rating": 5.0,
+            "minimumOrderQuantity": 2**31 - 1,
+        }
+        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body["price"] == 999999.99
+        assert body["stock"] == 2**31 - 1
+        assert body["minimumOrderQuantity"] == 2**31 - 1
+
+    def test_create_with_null_brand_explicitly(self, client: TestClient, admin_token_headers):
+        data = {**SAMPLE_PRODUCT, "sku": "TST-NULLBRAND", "brand": None}
+        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        assert resp.status_code == 201
+        assert resp.json()["brand"] is None
+
+    def test_update_wrong_data_type_for_price(self, client: TestClient, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        resp = client.put(
+            f"/api/v1/products/{created['id']}",
+            json={"price": "not-a-number"},
+            headers=admin_token_headers,
+        )
+        assert resp.status_code == 422
+
+    def test_update_wrong_data_type_for_stock(self, client: TestClient, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        resp = client.put(
+            f"/api/v1/products/{created['id']}",
+            json={"stock": "not-an-integer"},
+            headers=admin_token_headers,
+        )
+        assert resp.status_code == 422
+
+    def test_update_set_optional_field_to_null(self, client: TestClient, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        assert created["brand"] == "TestBrand"
+        resp = client.put(
+            f"/api/v1/products/{created['id']}",
+            json={"brand": None},
+            headers=admin_token_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["brand"] is None
+
+
+class TestSearchEdgeCases:
+    def test_search_sql_like_attempt(self, client: TestClient, admin_token_headers):
+        _create_product(client, {"sku": "TST-SQLI"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/search?q=%27+OR+1%3D1--")
+        assert resp.status_code == 200
+        assert isinstance(resp.json()["products"], list)
+
+    def test_search_unicode(self, client: TestClient, admin_token_headers):
+        _create_product(
+            client, {"title": "Café Français", "sku": "TST-UNI"},
+            headers=admin_token_headers,
+        )
+        resp = client.get("/api/v1/products/search?q=Caf%C3%A9")
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 1
+
+    def test_search_partial_substring(self, client: TestClient, admin_token_headers):
+        _create_product(
+            client, {"title": "Super Deluxe Widget Pro", "sku": "TST-PARTIAL"},
+            headers=admin_token_headers,
+        )
+        resp = client.get("/api/v1/products/search?q=Deluxe")
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 1
+
+    def test_search_with_numbers_only(self, client: TestClient, admin_token_headers):
+        _create_product(
+            client, {"title": "Model 2024 v3", "sku": "TST-NUM"},
+            headers=admin_token_headers,
+        )
+        resp = client.get("/api/v1/products/search?q=2024")
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 1
+
+    def test_search_with_spaces(self, client: TestClient, admin_token_headers):
+        _create_product(
+            client, {"title": "Wireless Bluetooth Headphones", "sku": "TST-SPACE"},
+            headers=admin_token_headers,
+        )
+        resp = client.get("/api/v1/products/search?q=Wireless+Bluetooth")
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 1
+
+
+class TestCategoryEdgeCases:
+    def test_products_by_category_case_mismatch(self, client: TestClient, admin_token_headers):
+        _create_product(
+            client, {"category": "Electronics", "sku": "TST-CASECAT"},
+            headers=admin_token_headers,
+        )
+        resp = client.get("/api/v1/categories/electronics")
+        assert resp.status_code == 404
+        resp2 = client.get("/api/v1/categories/Electronics")
+        assert resp2.status_code == 200
+        assert resp2.json()["total"] == 1
+
+    def test_categories_after_all_products_deleted(self, client: TestClient, admin_token_headers):
+        _create_product(client, {"sku": "TST-CATDEL1"}, headers=admin_token_headers)
+        _create_product(client, {"sku": "TST-CATDEL2"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/categories")
+        assert len(resp.json()) == 1
+        list_resp = client.get("/api/v1/products?limit=100")
+        for p in list_resp.json()["products"]:
+            client.delete(f"/api/v1/products/{p['id']}", headers=admin_token_headers)
+        resp2 = client.get("/api/v1/categories")
+        assert resp2.json() == []
+
+    def test_products_by_category_with_special_chars(self, client: TestClient, admin_token_headers):
+        _create_product(
+            client, {"category": "Men's & Women's", "sku": "TST-SPECAT"},
+            headers=admin_token_headers,
+        )
+        resp = client.get("/api/v1/categories/Men's%20&%20Women's")
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 1
+
+
+class TestGetProductEdgeCases:
+    def test_get_product_negative_id(self, client: TestClient):
+        resp = client.get("/api/v1/products/-1")
+        assert resp.status_code == 404
+
+    def test_get_product_zero_id(self, client: TestClient):
+        resp = client.get("/api/v1/products/0")
+        assert resp.status_code == 404
+
+    def test_get_product_with_string_id(self, client: TestClient):
+        resp = client.get("/api/v1/products/abc")
+        assert resp.status_code == 422
+
+    def test_get_product_very_large_id(self, client: TestClient):
+        resp = client.get("/api/v1/products/999999999999")
+        assert resp.status_code == 404
+
+
+class TestProductModel:
+    def test_product_created_with_all_fields_in_db(self, client: TestClient, db: Session, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        db_product = db.query(Product).filter(Product.id == created["id"]).first()
+        assert db_product.title == SAMPLE_PRODUCT["title"]
+        assert db_product.description == SAMPLE_PRODUCT["description"]
+        assert db_product.category == SAMPLE_PRODUCT["category"]
+        assert db_product.price == SAMPLE_PRODUCT["price"]
+        assert db_product.stock == SAMPLE_PRODUCT["stock"]
+        assert db_product.sku == SAMPLE_PRODUCT["sku"]
+        assert db_product.brand == SAMPLE_PRODUCT["brand"]
+        assert db_product.rating == SAMPLE_PRODUCT["rating"]
+        assert db_product.tags == SAMPLE_PRODUCT["tags"]
+
+    def test_update_persists_to_db(self, client: TestClient, db: Session, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        pid = created["id"]
+        client.put(
+            f"/api/v1/products/{pid}",
+            json={"title": "DB Updated", "price": 77.77},
+            headers=admin_token_headers,
+        )
+        db_product = db.query(Product).filter(Product.id == pid).first()
+        assert db_product.title == "DB Updated"
+        assert db_product.price == 77.77
