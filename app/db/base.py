@@ -2,3 +2,4 @@
 # imported by Alembic or database initialization scripts.
 from app.db.session import Base
 from app.models.user import User
+from app.models.product import Product
