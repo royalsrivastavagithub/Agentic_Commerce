@@ -669,6 +669,23 @@ class TestCreateProductEdgeCases:
         assert resp.status_code == 200
         assert resp.json()["brand"] is None
 
+    def test_create_with_invalid_category_id_returns_400(self, client: TestClient, admin_token_headers):
+        resp = client.post(
+            "/api/v1/products",
+            json={**SAMPLE_PRODUCT, "category_id": 99999, "sku": "TST-BADCAT"},
+            headers=admin_token_headers,
+        )
+        assert resp.status_code == 400
+
+    def test_update_with_invalid_category_id_returns_400(self, client: TestClient, admin_token_headers):
+        created = _create_product(client, headers=admin_token_headers)
+        resp = client.put(
+            f"/api/v1/products/{created['id']}",
+            json={"category_id": 99999},
+            headers=admin_token_headers,
+        )
+        assert resp.status_code == 400
+
 
 class TestSearchEdgeCases:
     def test_search_sql_like_attempt(self, client: TestClient, admin_token_headers):

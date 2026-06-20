@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.product import Product
 from app.models.user import User
+from app.models.category import Category
 from app.schemas.product import ProductSchema, ProductCreate, ProductUpdate, ProductsResponse
 from app.api.deps import get_current_admin_user
 
@@ -76,6 +77,11 @@ def create_product(
     _admin: User = Depends(get_current_admin_user),
 ):
     data = product_in.model_dump(exclude_none=True)
+    if not db.query(Category).filter(Category.id == data.get("category_id")).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Category with id {data['category_id']} not found",
+        )
     try:
         product = Product(**data)
         db.add(product)
@@ -108,6 +114,11 @@ def update_product(
             detail=f"Product with id {product_id} not found",
         )
     update_data = product_in.model_dump(exclude_unset=True)
+    if "category_id" in update_data and not db.query(Category).filter(Category.id == update_data["category_id"]).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Category with id {update_data['category_id']} not found",
+        )
     for field, value in update_data.items():
         setattr(product, field, value)
     try:
