@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.product import Product
+from app.models.user import User
 from app.schemas.product import ProductSchema, ProductCreate, ProductUpdate, ProductsResponse
+from app.api.deps import get_current_admin_user
 
 router = APIRouter(tags=["products"])
 categories_router = APIRouter(tags=["categories"])
@@ -69,7 +71,11 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
     response_model_by_alias=True,
 )
-def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
+def create_product(
+    product_in: ProductCreate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin_user),
+):
     data = product_in.model_dump(exclude_none=True)
     try:
         product = Product(**data)
@@ -91,7 +97,10 @@ def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
     response_model_by_alias=True,
 )
 def update_product(
-    product_id: int, product_in: ProductUpdate, db: Session = Depends(get_db)
+    product_id: int,
+    product_in: ProductUpdate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin_user),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
@@ -115,7 +124,11 @@ def update_product(
 
 
 @router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_current_admin_user),
+):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(

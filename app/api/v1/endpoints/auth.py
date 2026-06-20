@@ -104,7 +104,7 @@ def login(user_in: UserLogin, db: Session = Depends(get_db)):
             detail="Invalid credentials",
         )
 
-    access_token = create_access_token(subject=user.id)
+    access_token = create_access_token(subject=user.id, role=user.role)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -120,5 +120,5 @@ def login_access_token(
             detail="Invalid credentials",
         )
 
-    access_token = create_access_token(subject=user.id)
+    access_token = create_access_token(subject=user.id, role=user.role)
     return {"access_token": access_token, "token_type": "bearer"}

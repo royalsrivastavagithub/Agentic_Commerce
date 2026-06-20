@@ -19,10 +19,32 @@ if str(_project_root) not in sys.path:
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.core.security import get_password_hash, create_access_token
+from app.db.session import SessionLocal
+from app.models.user import User
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 PRODUCTS_FILE = DATA_DIR / "products.json"
 API_PREFIX = "/api/v1"
+
+
+def _get_admin_headers() -> dict:
+    db = SessionLocal()
+    admin = db.query(User).filter(User.role == "admin").first()
+    if not admin:
+        admin = User(
+            email="seed-admin@example.com",
+            hashed_password=get_password_hash("seed-admin-pw"),
+            is_active=True,
+            is_verified=True,
+            role="admin",
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+    db.close()
+    token = create_access_token(subject=admin.id, role=admin.role)
+    return {"Authorization": f"Bearer {token}"}
 
 
 def load_products() -> list[dict]:
@@ -33,6 +55,7 @@ def load_products() -> list[dict]:
 
 def seed(force: bool = False) -> None:
     client = TestClient(app)
+    headers = _get_admin_headers()
     products = load_products()
 
     print(f"Loaded {len(products)} products from {PRODUCTS_FILE}")
@@ -43,7 +66,7 @@ def seed(force: bool = False) -> None:
         if resp.status_code == 200:
             existing = resp.json().get("products", [])
             for p in existing:
-                client.delete(f"{API_PREFIX}/products/{p['id']}")
+                client.delete(f"{API_PREFIX}/products/{p['id']}", headers=headers)
             print(f"Deleted {len(existing)} existing products")
         else:
             print("Could not fetch existing products; proceeding anyway")
@@ -53,7 +76,7 @@ def seed(force: bool = False) -> None:
     errors = 0
 
     for p in products:
-        resp = client.post(f"{API_PREFIX}/products", json=p)
+        resp = client.post(f"{API_PREFIX}/products", json=p, headers=headers)
         if resp.status_code == 201:
             created += 1
         elif resp.status_code == 409:

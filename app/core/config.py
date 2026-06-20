@@ -21,6 +21,6 @@ class Settings(BaseSettings):
         description="JWT signature secret key"
     )
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 1 week
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 minutes
 
 settings = Settings()
