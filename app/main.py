@@ -4,7 +4,7 @@ from app.api.v1.router import api_router
 
 app = FastAPI(
     title="Agentic Commerce API",
-    description="A basic healthcheck route is implemented under /api/v1/health",
+    description="Backend API for Agentic Commerce.",
     version="0.1.0"
 )
 
