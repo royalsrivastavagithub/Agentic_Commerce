@@ -1,8 +1,12 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
+from sqlalchemy.orm import Session
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.db.session import engine
+from app.models.user import User
+from app.core.security import get_password_hash, create_access_token
 
 openapi_tags = [
     {"name": "healthcheck", "description": "API health and status checks"},
@@ -55,6 +59,42 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 app.include_router(api_router, prefix="/api/v1")
+
+
+@app.on_event("startup")
+def seed_admin():
+    ADMIN_EMAIL = "admin@admin.com"
+    ADMIN_PASSWORD = "admin"
+    db = Session(bind=engine)
+    try:
+        existing = db.query(User).filter(User.email == ADMIN_EMAIL).first()
+        if not existing:
+            admin = User(
+                email=ADMIN_EMAIL,
+                hashed_password=get_password_hash(ADMIN_PASSWORD),
+                role="admin",
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(admin)
+            db.commit()
+            db.refresh(admin)
+            token = create_access_token(subject=admin.id, role=admin.role)
+            print("\n" + "=" * 60)
+            print("ADMIN ACCOUNT CREATED")
+            print(f"  Email:    {ADMIN_EMAIL}")
+            print(f"  Password: {ADMIN_PASSWORD}")
+            print(f"  JWT Token (paste in Swagger Authorize):")
+            print(f"  {token}")
+            print("=" * 60 + "\n")
+        else:
+            token = create_access_token(subject=existing.id, role=existing.role)
+            print("\n" + "=" * 60)
+            print("ADMIN JWT TOKEN:")
+            print(f"  {token}")
+            print("=" * 60 + "\n")
+    finally:
+        db.close()
 
 
 @app.get("/")
