@@ -8,6 +8,76 @@ from app.db.session import Base, get_db
 from app.main import app
 from app.core.security import get_password_hash, create_access_token
 from app.models.user import User
+from app.models.category import Category
+from app.models.product import Product
+
+
+SAMPLE_PRODUCT = {
+    "title": "Test Product",
+    "description": "A sample product for testing",
+    "price": 29.99,
+    "discountPercentage": 10.0,
+    "rating": 4.5,
+    "stock": 50,
+    "tags": ["test", "electronics"],
+    "brand": "TestBrand",
+    "sku": "TST-001",
+    "weight": 1.5,
+    "dimensions": {"width": 10.0, "height": 5.0, "depth": 3.0},
+    "warrantyInformation": "1 year warranty",
+    "shippingInformation": "Ships in 3-5 days",
+    "availabilityStatus": "In Stock",
+    "reviews": [
+        {
+            "rating": 5,
+            "comment": "Great product!",
+            "date": "2024-01-01T00:00:00Z",
+            "reviewerName": "John Doe",
+            "reviewerEmail": "john@example.com",
+        }
+    ],
+    "returnPolicy": "30 days return",
+    "minimumOrderQuantity": 1,
+    "meta": {
+        "createdAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+        "barcode": "123456789",
+        "qrCode": "https://example.com/qr",
+    },
+    "images": ["https://example.com/img1.jpg"],
+    "thumbnail": "https://example.com/thumb.jpg",
+}
+
+
+def api_create_category(
+    client: TestClient, name: str = "electronics", headers: dict | None = None,
+) -> dict:
+    h = headers or {}
+    resp = client.post("/api/v1/admin/categories", json={"name": name}, headers=h)
+    if resp.status_code == 409:
+        cats = client.get("/api/v1/categories").json()
+        for c in cats:
+            if c["name"] == name:
+                return c
+        raise AssertionError(f"Category '{name}' conflict but not in list")
+    assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.text}"
+    return resp.json()
+
+
+def api_create_product(
+    client: TestClient,
+    overrides: dict | None = None,
+    headers: dict | None = None,
+) -> dict:
+    data = {**SAMPLE_PRODUCT}
+    if overrides:
+        data.update(overrides)
+    if "category_id" not in data:
+        cat = api_create_category(client, headers=headers)
+        data["category_id"] = cat["id"]
+    resp = client.post("/api/v1/admin/products", json=data, headers=headers or {})
+    assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.text}"
+    return resp.json()
 
 # Use an in-memory SQLite database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
