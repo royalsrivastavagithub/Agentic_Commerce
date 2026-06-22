@@ -56,8 +56,8 @@ export default function ProductsContent() {
   }, [searchFromUrl, categoryFromUrl])
 
   useEffect(() => {
-    if (searchFromUrl) setCategory("all")
-  }, [searchFromUrl])
+    if (searchFromUrl && !categoryFromUrl) setCategory("all")
+  }, [searchFromUrl, categoryFromUrl])
 
   const categoryIdMap = useMemo(() => {
     const m = new Map<string, number>()
@@ -79,8 +79,7 @@ export default function ProductsContent() {
     (maxPrice !== "" && parseFloat(maxPrice) < priceMax)
 
   const skip = (page - 1) * LIMIT
-  const activeCategory = searchFromUrl ? "all" : category
-  const catId = activeCategory !== "all" ? categoryIdMap.get(activeCategory) : undefined
+  const catId = category !== "all" ? categoryIdMap.get(category) : undefined
   const productsQueryKey = searchFromUrl
     ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating, sort]
     : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating, priceMin, priceMax]

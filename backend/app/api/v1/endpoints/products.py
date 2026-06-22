@@ -91,15 +91,32 @@ def search_products(
     category_id: int | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
+    sort_by: str = Query("", pattern="^(|price|rating)$"),
+    sort_order: str = Query("asc", pattern="^(asc|desc)$"),
+    min_price: float | None = Query(None, ge=0),
+    max_price: float | None = Query(None, ge=0),
+    min_rating: float | None = Query(None, ge=0, le=5),
     db: Session = Depends(get_db),
 ):
     base_query = db.query(Product)
     if category_id is not None:
         base_query = base_query.filter(Product.category_id == category_id)
+    if min_price is not None:
+        base_query = base_query.filter(Product.price >= min_price)
+    if max_price is not None:
+        base_query = base_query.filter(Product.price <= max_price)
+    if min_rating is not None:
+        base_query = base_query.filter(Product.rating >= min_rating)
     all_products = base_query.all()
     scored = [(p, _score_product(q, p)) for p in all_products]
     matched = [(p, s) for p, s in scored if s >= 40]
-    matched.sort(key=lambda x: -x[1])
+
+    if sort_by:
+        col = Product.price if sort_by == "price" else Product.rating
+        col = col.desc() if sort_order == "desc" else col.asc()
+        matched.sort(key=lambda x: getattr(x[0], sort_by), reverse=(sort_order == "desc"))
+    else:
+        matched.sort(key=lambda x: -x[1])
 
     total = len(matched)
     page = [p for p, _ in matched[skip:skip + limit]]
