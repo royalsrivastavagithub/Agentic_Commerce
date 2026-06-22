@@ -1,9 +1,10 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.limiter import limiter
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserUpdate, PasswordChange, Token, UserLogin
@@ -34,7 +35,8 @@ def _authenticate_user(email: str, password: str, db: Session) -> User | None:
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED, summary="Register a new user")
-def signup(user_in: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def signup(request: Request, user_in: UserCreate, db: Session = Depends(get_db)):
     existing_user = (
         db.query(User)
         .filter(func.lower(User.email) == func.lower(user_in.email))
@@ -79,7 +81,9 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/verify-email", summary="Verify email address with token")
+@limiter.limit("30/minute")
 def verify_email(
+    request: Request,
     token: str = Query(..., description="The verification token printed during signup"),
     db: Session = Depends(get_db),
 ):
@@ -102,7 +106,8 @@ def verify_email(
 
 
 @router.post("/login", response_model=Token, summary="Login with email and password (JSON)")
-def login(user_in: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def login(request: Request, user_in: UserLogin, db: Session = Depends(get_db)):
     user = _authenticate_user(user_in.email, user_in.password, db)
     if not user:
         raise HTTPException(
@@ -115,7 +120,9 @@ def login(user_in: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/login/access-token", response_model=Token, summary="Login with email and password (form)")
+@limiter.limit("30/minute")
 def login_access_token(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
@@ -152,7 +159,9 @@ def update_current_user(
 
 
 @router.put("/users/me/password", response_model=UserResponse, summary="Change current user password")
+@limiter.limit("30/minute")
 def change_password(
+    request: Request,
     pw_in: PasswordChange,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
