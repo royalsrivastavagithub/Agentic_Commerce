@@ -1,0 +1,159 @@
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
+from app.models.cart import Cart, CartItem
+from app.models.product import Product
+from app.schemas.cart import (
+    CartItemCreate,
+    CartItemUpdate,
+    CartItemResponse,
+    CartResponse,
+)
+from app.api.deps import get_current_user
+from app.models.user import User
+
+router = APIRouter(prefix="/cart", tags=["cart"])
+
+
+def _get_or_create_cart(user_id: int, db: Session) -> Cart:
+    cart = db.query(Cart).filter(Cart.user_id == user_id).first()
+    if not cart:
+        cart = Cart(user_id=user_id)
+        db.add(cart)
+        db.commit()
+        db.refresh(cart)
+    return cart
+
+
+def _compute_total(items: list[CartItem]) -> float:
+    return round(sum(
+        item.quantity * item.product.price for item in items if item.product
+    ), 2)
+
+
+@router.get("", response_model=CartResponse)
+def get_cart(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+    if not cart:
+        return CartResponse(
+            id=0, items=[], total=0,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+    total = _compute_total(cart.items)
+    return CartResponse(
+        id=cart.id, items=cart.items, total=total,
+        created_at=cart.created_at, updated_at=cart.updated_at,
+    )
+
+
+@router.post("/items", response_model=CartItemResponse, status_code=status.HTTP_201_CREATED)
+def add_cart_item(
+    item_in: CartItemCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    product = db.query(Product).filter(Product.id == item_in.product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+    if item_in.quantity > product.stock:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Only {product.stock} units available",
+        )
+
+    cart = _get_or_create_cart(current_user.id, db)
+
+    existing = (
+        db.query(CartItem)
+        .filter(CartItem.cart_id == cart.id, CartItem.product_id == item_in.product_id)
+        .first()
+    )
+    if existing:
+        new_qty = existing.quantity + item_in.quantity
+        if new_qty > product.stock:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only {product.stock} units available (already have {existing.quantity})",
+            )
+        existing.quantity = new_qty
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    cart_item = CartItem(
+        cart_id=cart.id,
+        product_id=item_in.product_id,
+        quantity=item_in.quantity,
+    )
+    db.add(cart_item)
+    db.commit()
+    db.refresh(cart_item)
+    return cart_item
+
+
+@router.put("/items/{item_id}", response_model=CartItemResponse)
+def update_cart_item(
+    item_id: int,
+    item_in: CartItemUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cart_item = _get_cart_item(item_id, current_user.id, db)
+
+    if item_in.quantity > cart_item.product.stock:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Only {cart_item.product.stock} units available",
+        )
+
+    cart_item.quantity = item_in.quantity
+    db.commit()
+    db.refresh(cart_item)
+    return cart_item
+
+
+@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_cart_item(
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cart_item = _get_cart_item(item_id, current_user.id, db)
+    db.delete(cart_item)
+    db.commit()
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+def clear_cart(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+    if cart:
+        cart.items = []
+        db.commit()
+
+
+def _get_cart_item(item_id: int, user_id: int, db: Session) -> CartItem:
+    cart_item = (
+        db.query(CartItem)
+        .join(Cart)
+        .filter(CartItem.id == item_id, Cart.user_id == user_id)
+        .first()
+    )
+    if not cart_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cart item not found",
+        )
+    return cart_item

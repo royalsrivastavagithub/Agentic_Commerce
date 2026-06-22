@@ -22,3 +22,4 @@ class User(Base):
     gender = Column(String, nullable=True)
 
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
+    cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
