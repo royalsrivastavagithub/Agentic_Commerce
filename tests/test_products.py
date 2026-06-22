@@ -50,7 +50,7 @@ def _create_category(
     client: TestClient, name: str = "electronics", headers: dict | None = None,
 ) -> dict:
     h = headers or {}
-    resp = client.post("/api/v1/categories", json={"name": name}, headers=h)
+    resp = client.post("/api/v1/admin/categories", json={"name": name}, headers=h)
     if resp.status_code == 409:
         cats = client.get("/api/v1/categories").json()
         for c in cats:
@@ -72,7 +72,7 @@ def _create_product(
     if "category_id" not in data:
         cat = _create_category(client, headers=headers)
         data["category_id"] = cat["id"]
-    resp = client.post("/api/v1/products", json=data, headers=headers or {})
+    resp = client.post("/api/v1/admin/products", json=data, headers=headers or {})
     assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.text}"
     return resp.json()
 
@@ -81,7 +81,7 @@ class TestAuthzProductCRUD:
     def test_create_without_auth_returns_401(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={**SAMPLE_PRODUCT, "category_id": cat["id"]},
         )
         assert resp.status_code == 401
@@ -89,7 +89,7 @@ class TestAuthzProductCRUD:
     def test_create_with_user_role_returns_403(self, client: TestClient, admin_token_headers, user_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={**SAMPLE_PRODUCT, "category_id": cat["id"]},
             headers=user_token_headers,
         )
@@ -98,7 +98,7 @@ class TestAuthzProductCRUD:
     def test_update_without_auth_returns_401(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={"title": "Hacked"},
         )
         assert resp.status_code == 401
@@ -106,7 +106,7 @@ class TestAuthzProductCRUD:
     def test_update_with_user_role_returns_403(self, client: TestClient, admin_token_headers, user_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={"title": "Hacked"},
             headers=user_token_headers,
         )
@@ -114,7 +114,7 @@ class TestAuthzProductCRUD:
 
     def test_delete_without_auth_returns_401(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
-        resp = client.delete(f"/api/v1/products/{created['id']}")
+        resp = client.delete(f"/api/v1/admin/products/{created['id']}")
         assert resp.status_code == 401
 
 
@@ -157,7 +157,7 @@ class TestCreateProduct:
     def test_create_minimal(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         data = {**SAMPLE_PRODUCT, "category_id": cat["id"]}
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 201
         body = resp.json()
         assert body["id"] == 1
@@ -169,7 +169,7 @@ class TestCreateProduct:
     def test_create_with_specific_id(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         data = {**SAMPLE_PRODUCT, "id": 100, "sku": "TST-SID", "category_id": cat["id"]}
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 201
         assert resp.json()["id"] == 100
 
@@ -178,7 +178,7 @@ class TestCreateProduct:
         data = {k: v for k, v in SAMPLE_PRODUCT.items() if k != "brand"}
         data["sku"] = "TST-NOBRAND"
         data["category_id"] = cat["id"]
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 201
         assert resp.json()["brand"] is None
 
@@ -186,7 +186,7 @@ class TestCreateProduct:
         _create_product(client, {"sku": "TST-DUP1"}, headers=admin_token_headers)
         cat = _create_category(client, "new-cat", headers=admin_token_headers)
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={**SAMPLE_PRODUCT, "id": 1, "sku": "TST-DUP2", "category_id": cat["id"]},
             headers=admin_token_headers,
         )
@@ -196,24 +196,24 @@ class TestCreateProduct:
         cat = _create_category(client, headers=admin_token_headers)
         data = {k: v for k, v in SAMPLE_PRODUCT.items() if k != "title"}
         data["category_id"] = cat["id"]
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 422
 
     def test_create_without_sku(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         data = {k: v for k, v in SAMPLE_PRODUCT.items() if k != "sku"}
         data["category_id"] = cat["id"]
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 422
 
     def test_create_empty_body(self, client: TestClient, admin_token_headers):
-        resp = client.post("/api/v1/products", json={}, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json={}, headers=admin_token_headers)
         assert resp.status_code == 422
 
     def test_create_negative_price(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={**SAMPLE_PRODUCT, "category_id": cat["id"], "sku": "TST-NEG", "price": -5.0},
             headers=admin_token_headers,
         )
@@ -246,7 +246,7 @@ class TestUpdateProduct:
         created = _create_product(client, headers=admin_token_headers)
         pid = created["id"]
         resp = client.put(
-            f"/api/v1/products/{pid}",
+            f"/api/v1/admin/products/{pid}",
             json={"title": "Updated Title", "price": 99.99},
             headers=admin_token_headers,
         )
@@ -258,7 +258,7 @@ class TestUpdateProduct:
 
     def test_update_non_existing(self, client: TestClient, admin_token_headers):
         resp = client.put(
-            "/api/v1/products/99999",
+            "/api/v1/admin/products/99999",
             json={"title": "Nope"},
             headers=admin_token_headers,
         )
@@ -268,7 +268,7 @@ class TestUpdateProduct:
         created = _create_product(client, headers=admin_token_headers)
         pid = created["id"]
         resp = client.put(
-            f"/api/v1/products/{pid}",
+            f"/api/v1/admin/products/{pid}",
             json={"discountPercentage": 25.0},
             headers=admin_token_headers,
         )
@@ -301,7 +301,7 @@ class TestUpdateProduct:
             "images": [],
             "thumbnail": "t.jpg",
         }
-        resp = client.put(f"/api/v1/products/{pid}", json=new_data, headers=admin_token_headers)
+        resp = client.put(f"/api/v1/admin/products/{pid}", json=new_data, headers=admin_token_headers)
         assert resp.status_code == 200
         body = resp.json()
         assert body["title"] == "Fully Replaced"
@@ -310,7 +310,7 @@ class TestUpdateProduct:
     def test_update_sets_required_field_to_null(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={"sku": None},
             headers=admin_token_headers,
         )
@@ -319,7 +319,7 @@ class TestUpdateProduct:
     def test_update_empty_body(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={},
             headers=admin_token_headers,
         )
@@ -334,7 +334,7 @@ class TestUpdateProduct:
         assert r1.status_code == 200
         assert r1.json()["title"] == "Test Product"
         r2 = client.put(
-            f"/api/v1/products/{pid}",
+            f"/api/v1/admin/products/{pid}",
             json={"title": "Flow Updated", "price": 15.0},
             headers=admin_token_headers,
         )
@@ -343,7 +343,7 @@ class TestUpdateProduct:
         r3 = client.get(f"/api/v1/products/{pid}")
         assert r3.json()["title"] == "Flow Updated"
         assert r3.json()["price"] == 15.0
-        r4 = client.delete(f"/api/v1/products/{pid}", headers=admin_token_headers)
+        r4 = client.delete(f"/api/v1/admin/products/{pid}", headers=admin_token_headers)
         assert r4.status_code == 204
         r5 = client.get(f"/api/v1/products/{pid}")
         assert r5.status_code == 404
@@ -353,13 +353,13 @@ class TestDeleteProduct:
     def test_delete_existing(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         pid = created["id"]
-        resp = client.delete(f"/api/v1/products/{pid}", headers=admin_token_headers)
+        resp = client.delete(f"/api/v1/admin/products/{pid}", headers=admin_token_headers)
         assert resp.status_code == 204
         get_resp = client.get(f"/api/v1/products/{pid}")
         assert get_resp.status_code == 404
 
     def test_delete_non_existing(self, client: TestClient, admin_token_headers):
-        resp = client.delete("/api/v1/products/99999", headers=admin_token_headers)
+        resp = client.delete("/api/v1/admin/products/99999", headers=admin_token_headers)
         assert resp.status_code == 404
 
 
@@ -490,7 +490,7 @@ class TestProductInDB:
     def test_product_deleted_from_db(self, client: TestClient, db: Session, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         pid = created["id"]
-        client.delete(f"/api/v1/products/{pid}", headers=admin_token_headers)
+        client.delete(f"/api/v1/admin/products/{pid}", headers=admin_token_headers)
         db_product = db.query(Product).filter(Product.id == pid).first()
         assert db_product is None
 
@@ -499,7 +499,7 @@ class TestAuthzExtended:
     def test_delete_with_user_role_returns_403(self, client: TestClient, admin_token_headers, user_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.delete(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             headers=user_token_headers,
         )
         assert resp.status_code == 403
@@ -520,7 +520,7 @@ class TestAuthzExtended:
             subject=admin.id, role=admin.role, expires_delta=timedelta(seconds=-1)
         )
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={**SAMPLE_PRODUCT, "category_id": cat["id"]},
             headers={"Authorization": f"Bearer {expired}"},
         )
@@ -542,7 +542,7 @@ class TestAuthzExtended:
             subject=admin.id, role=admin.role, expires_delta=timedelta(seconds=-1)
         )
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={"title": "nope"},
             headers={"Authorization": f"Bearer {expired}"},
         )
@@ -564,7 +564,7 @@ class TestAuthzExtended:
             subject=admin.id, role=admin.role, expires_delta=timedelta(seconds=-1)
         )
         resp = client.delete(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             headers={"Authorization": f"Bearer {expired}"},
         )
         assert resp.status_code == 401
@@ -572,7 +572,7 @@ class TestAuthzExtended:
     def test_malformed_token_on_delete_returns_401(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.delete(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             headers={"Authorization": "Bearer garbage.invalid.token"},
         )
         assert resp.status_code == 401
@@ -580,7 +580,7 @@ class TestAuthzExtended:
     def test_malformed_token_on_update_returns_401(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={"title": "nope"},
             headers={"Authorization": "Bearer garbage.invalid.token"},
         )
@@ -591,28 +591,28 @@ class TestCreateProductEdgeCases:
     def test_create_with_empty_tags(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         data = {**SAMPLE_PRODUCT, "category_id": cat["id"], "sku": "TST-EMPTYTAGS", "tags": []}
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 201
         assert resp.json()["tags"] == []
 
     def test_create_zero_price(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         data = {**SAMPLE_PRODUCT, "category_id": cat["id"], "sku": "TST-ZEROPRICE", "price": 0.0}
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 201
         assert resp.json()["price"] == 0.0
 
     def test_create_zero_stock(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         data = {**SAMPLE_PRODUCT, "category_id": cat["id"], "sku": "TST-ZEROSTOCK", "stock": 0}
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 201
         assert resp.json()["stock"] == 0
 
     def test_create_negative_stock(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         data = {**SAMPLE_PRODUCT, "category_id": cat["id"], "sku": "TST-NEGSTOCK", "stock": -5}
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 201
 
     def test_create_max_integers(self, client: TestClient, admin_token_headers):
@@ -626,7 +626,7 @@ class TestCreateProductEdgeCases:
             "rating": 5.0,
             "minimumOrderQuantity": 2**31 - 1,
         }
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 201
         body = resp.json()
         assert body["price"] == 999999.99
@@ -636,14 +636,14 @@ class TestCreateProductEdgeCases:
     def test_create_with_null_brand_explicitly(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         data = {**SAMPLE_PRODUCT, "category_id": cat["id"], "sku": "TST-NULLBRAND", "brand": None}
-        resp = client.post("/api/v1/products", json=data, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json=data, headers=admin_token_headers)
         assert resp.status_code == 201
         assert resp.json()["brand"] is None
 
     def test_update_wrong_data_type_for_price(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={"price": "not-a-number"},
             headers=admin_token_headers,
         )
@@ -652,7 +652,7 @@ class TestCreateProductEdgeCases:
     def test_update_wrong_data_type_for_stock(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={"stock": "not-an-integer"},
             headers=admin_token_headers,
         )
@@ -662,7 +662,7 @@ class TestCreateProductEdgeCases:
         created = _create_product(client, headers=admin_token_headers)
         assert created["brand"] == "TestBrand"
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={"brand": None},
             headers=admin_token_headers,
         )
@@ -671,7 +671,7 @@ class TestCreateProductEdgeCases:
 
     def test_create_with_invalid_category_id_returns_400(self, client: TestClient, admin_token_headers):
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={**SAMPLE_PRODUCT, "category_id": 99999, "sku": "TST-BADCAT"},
             headers=admin_token_headers,
         )
@@ -680,7 +680,7 @@ class TestCreateProductEdgeCases:
     def test_update_with_invalid_category_id_returns_400(self, client: TestClient, admin_token_headers):
         created = _create_product(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/products/{created['id']}",
+            f"/api/v1/admin/products/{created['id']}",
             json={"category_id": 99999},
             headers=admin_token_headers,
         )
@@ -748,7 +748,7 @@ class TestCategoryEdgeCases:
         assert len(resp.json()) == 2
         list_resp = client.get("/api/v1/products?limit=100")
         for p in list_resp.json()["products"]:
-            client.delete(f"/api/v1/products/{p['id']}", headers=admin_token_headers)
+            client.delete(f"/api/v1/admin/products/{p['id']}", headers=admin_token_headers)
         resp2 = client.get("/api/v1/categories")
         assert len(resp2.json()) == 2  # categories persist independently
 
@@ -798,7 +798,7 @@ class TestProductModel:
         created = _create_product(client, headers=admin_token_headers)
         pid = created["id"]
         client.put(
-            f"/api/v1/products/{pid}",
+            f"/api/v1/admin/products/{pid}",
             json={"title": "DB Updated", "price": 77.77},
             headers=admin_token_headers,
         )
@@ -809,26 +809,26 @@ class TestProductModel:
 
 class TestAuthzCategoryCRUD:
     def test_create_without_auth_returns_401(self, client: TestClient):
-        resp = client.post("/api/v1/categories", json={"name": "test"})
+        resp = client.post("/api/v1/admin/categories", json={"name": "test"})
         assert resp.status_code == 401
 
     def test_create_with_user_role_returns_403(self, client: TestClient, user_token_headers):
         resp = client.post(
-            "/api/v1/categories", json={"name": "test"}, headers=user_token_headers
+            "/api/v1/admin/categories", json={"name": "test"}, headers=user_token_headers
         )
         assert resp.status_code == 403
 
     def test_update_without_auth_returns_401(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/categories/{cat['id']}", json={"name": "hacked"},
+            f"/api/v1/admin/categories/{cat['id']}", json={"name": "hacked"},
         )
         assert resp.status_code == 401
 
     def test_update_with_user_role_returns_403(self, client: TestClient, admin_token_headers, user_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/categories/{cat['id']}",
+            f"/api/v1/admin/categories/{cat['id']}",
             json={"name": "hacked"},
             headers=user_token_headers,
         )
@@ -836,13 +836,13 @@ class TestAuthzCategoryCRUD:
 
     def test_delete_without_auth_returns_401(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
-        resp = client.delete(f"/api/v1/categories/{cat['id']}")
+        resp = client.delete(f"/api/v1/admin/categories/{cat['id']}")
         assert resp.status_code == 401
 
     def test_delete_with_user_role_returns_403(self, client: TestClient, admin_token_headers, user_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         resp = client.delete(
-            f"/api/v1/categories/{cat['id']}", headers=user_token_headers,
+            f"/api/v1/admin/categories/{cat['id']}", headers=user_token_headers,
         )
         assert resp.status_code == 403
 
@@ -850,7 +850,7 @@ class TestAuthzCategoryCRUD:
 class TestCreateCategory:
     def test_create_minimal(self, client: TestClient, admin_token_headers):
         resp = client.post(
-            "/api/v1/categories", json={"name": "electronics"}, headers=admin_token_headers
+            "/api/v1/admin/categories", json={"name": "electronics"}, headers=admin_token_headers
         )
         assert resp.status_code == 201
         body = resp.json()
@@ -860,18 +860,18 @@ class TestCreateCategory:
     def test_create_duplicate(self, client: TestClient, admin_token_headers):
         _create_category(client, "electronics", headers=admin_token_headers)
         resp = client.post(
-            "/api/v1/categories", json={"name": "electronics"}, headers=admin_token_headers
+            "/api/v1/admin/categories", json={"name": "electronics"}, headers=admin_token_headers
         )
         assert resp.status_code == 409
 
     def test_create_empty_name(self, client: TestClient, admin_token_headers):
         resp = client.post(
-            "/api/v1/categories", json={"name": ""}, headers=admin_token_headers
+            "/api/v1/admin/categories", json={"name": ""}, headers=admin_token_headers
         )
         assert resp.status_code == 201
 
     def test_create_empty_body(self, client: TestClient, admin_token_headers):
-        resp = client.post("/api/v1/categories", json={}, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/categories", json={}, headers=admin_token_headers)
         assert resp.status_code == 422
 
     def test_create_multiple(self, client: TestClient, admin_token_headers):
@@ -902,7 +902,7 @@ class TestUpdateCategory:
     def test_update_name(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/categories/{cat['id']}",
+            f"/api/v1/admin/categories/{cat['id']}",
             json={"name": "new-name"},
             headers=admin_token_headers,
         )
@@ -911,7 +911,7 @@ class TestUpdateCategory:
 
     def test_update_nonexistent(self, client: TestClient, admin_token_headers):
         resp = client.put(
-            "/api/v1/categories/99999",
+            "/api/v1/admin/categories/99999",
             json={"name": "nope"},
             headers=admin_token_headers,
         )
@@ -921,7 +921,7 @@ class TestUpdateCategory:
         _create_category(client, "existing", headers=admin_token_headers)
         cat = _create_category(client, "original", headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/categories/{cat['id']}",
+            f"/api/v1/admin/categories/{cat['id']}",
             json={"name": "existing"},
             headers=admin_token_headers,
         )
@@ -930,7 +930,7 @@ class TestUpdateCategory:
     def test_update_empty_body(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         resp = client.put(
-            f"/api/v1/categories/{cat['id']}",
+            f"/api/v1/admin/categories/{cat['id']}",
             json={},
             headers=admin_token_headers,
         )
@@ -941,27 +941,27 @@ class TestUpdateCategory:
 class TestDeleteCategory:
     def test_delete_existing(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
-        resp = client.delete(f"/api/v1/categories/{cat['id']}", headers=admin_token_headers)
+        resp = client.delete(f"/api/v1/admin/categories/{cat['id']}", headers=admin_token_headers)
         assert resp.status_code == 204
         get_resp = client.get(f"/api/v1/categories/{cat['id']}")
         assert get_resp.status_code == 404
 
     def test_delete_nonexistent(self, client: TestClient, admin_token_headers):
-        resp = client.delete("/api/v1/categories/99999", headers=admin_token_headers)
+        resp = client.delete("/api/v1/admin/categories/99999", headers=admin_token_headers)
         assert resp.status_code == 404
 
     def test_delete_with_products_returns_409(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         _create_product(client, headers=admin_token_headers)
-        resp = client.delete(f"/api/v1/categories/{cat['id']}", headers=admin_token_headers)
+        resp = client.delete(f"/api/v1/admin/categories/{cat['id']}", headers=admin_token_headers)
         assert resp.status_code == 409
         assert "product" in resp.text.lower()
 
     def test_delete_after_products_removed(self, client: TestClient, admin_token_headers):
         cat = _create_category(client, headers=admin_token_headers)
         prod = _create_product(client, headers=admin_token_headers)
-        client.delete(f"/api/v1/products/{prod['id']}", headers=admin_token_headers)
-        resp = client.delete(f"/api/v1/categories/{cat['id']}", headers=admin_token_headers)
+        client.delete(f"/api/v1/admin/products/{prod['id']}", headers=admin_token_headers)
+        resp = client.delete(f"/api/v1/admin/categories/{cat['id']}", headers=admin_token_headers)
         assert resp.status_code == 204
 
 
@@ -975,6 +975,6 @@ class TestCategoryInDB:
     def test_category_deleted_from_db(self, client: TestClient, db: Session, admin_token_headers):
         created = _create_category(client, headers=admin_token_headers)
         cid = created["id"]
-        client.delete(f"/api/v1/categories/{cid}", headers=admin_token_headers)
+        client.delete(f"/api/v1/admin/categories/{cid}", headers=admin_token_headers)
         db_cat = db.query(Category).filter(Category.id == cid).first()
         assert db_cat is None

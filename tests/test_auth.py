@@ -197,7 +197,7 @@ def test_login_flow(client: TestClient, db: Session):
 
 class TestTokenSecurity:
     def test_expired_token_returns_401(self, client: TestClient, db: Session, admin_token_headers):
-        resp = client.post("/api/v1/products", json={"title": "x"}, headers=admin_token_headers)
+        resp = client.post("/api/v1/admin/products", json={"title": "x"}, headers=admin_token_headers)
         assert resp.status_code == 422  # ensure admin_token_headers is valid before expiry test
 
     def test_malformed_token_on_public_route_ignored(self, client: TestClient):
@@ -209,7 +209,7 @@ class TestTokenSecurity:
 
     def test_malformed_token_on_protected_route_returns_401(self, client: TestClient):
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={"title": "x"},
             headers={"Authorization": "Bearer this.is.not.a.valid.jwt"},
         )
@@ -231,7 +231,7 @@ class TestTokenSecurity:
         parts = token.split(".")
         tampered = f"{parts[0]}.{parts[1]}.invalidsignature"
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={"title": "x"},
             headers={"Authorization": f"Bearer {tampered}"},
         )
@@ -255,7 +255,7 @@ class TestTokenSecurity:
             algorithm="HS256",
         )
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={"title": "x"},
             headers={"Authorization": f"Bearer {wrong_key_token}"},
         )
@@ -277,7 +277,7 @@ class TestTokenSecurity:
             subject=user.id, role=user.role, expires_delta=timedelta(seconds=-1)
         )
         resp = client.post(
-            "/api/v1/products",
+            "/api/v1/admin/products",
             json={"title": "x"},
             headers={"Authorization": f"Bearer {expired_token}"},
         )
