@@ -1,7 +1,19 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
 
 router = APIRouter()
 
+
 @router.get("/health", tags=["healthcheck"])
-async def health_check():
-    return {"status": "ok"}
+def health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception:
+        db_status = "disconnected"
+
+    status = "ok" if db_status == "connected" else "error"
+    return {"status": status, "database": db_status}
