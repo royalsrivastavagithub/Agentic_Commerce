@@ -53,5 +53,6 @@ class OrderItem(Base):
     product_price = Column(Float, nullable=False)
     quantity = Column(Integer, nullable=False)
     subtotal = Column(Float, nullable=False)
+    thumbnail = Column(String, nullable=True)
 
     order = relationship("Order", back_populates="items")

@@ -35,7 +35,7 @@ function OrdersInner() {
         <div className="mx-auto max-w-4xl px-4 py-8">
           <div className="animate-pulse space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-28 rounded-lg bg-gray-200" />
+              <div key={i} className="h-28 rounded-lg bg-gray-200 dark:bg-muted" />
             ))}
           </div>
         </div>
@@ -47,7 +47,7 @@ function OrdersInner() {
     return (
       <Shell>
         <div className="mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-20 text-center">
-          <Package className="mb-4 h-16 w-16 text-gray-300" />
+          <Package className="mb-4 h-16 w-16 text-gray-300 dark:text-muted-foreground" />
           <h1 className="mb-2 text-2xl font-bold">Your Orders</h1>
           <p className="mb-8 text-muted-foreground">You haven&apos;t placed any orders yet.</p>
           <Link
@@ -62,11 +62,11 @@ function OrdersInner() {
   }
 
   const statusColors: Record<string, string> = {
-    pending: "bg-yellow-100 text-yellow-800",
-    confirmed: "bg-blue-100 text-blue-800",
-    shipped: "bg-purple-100 text-purple-800",
-    delivered: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-800",
+    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    confirmed: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    shipped: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+    delivered: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   }
 
   return (
@@ -78,7 +78,7 @@ function OrdersInner() {
             <Link
               key={order.id}
               href={`/orders/${order.id}`}
-              className="block rounded-lg border bg-white p-4 transition-shadow hover:shadow-md"
+              className="block rounded-lg border bg-white p-4 transition-shadow hover:shadow-md dark:border-border dark:bg-card"
             >
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -88,25 +88,22 @@ function OrdersInner() {
                   <span>TOTAL: ₹{order.total.toFixed(2)}</span>
                 </div>
                 <span
-                  className={`rounded-full px-3 py-0.5 text-xs font-medium capitalize ${statusColors[order.status] || "bg-gray-100 text-gray-800"}`}
+                  className={`rounded-full px-3 py-0.5 text-xs font-medium capitalize ${statusColors[order.status.toLowerCase()] || "bg-gray-100 text-gray-800 dark:bg-muted dark:text-muted-foreground"}`}
                 >
                   {order.status}
                 </span>
               </div>
               <div className="flex items-center gap-4">
-                {order.items.slice(0, 4).map((item) => (
-                  <div key={item.id} className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-gray-100">
-                    <img src="/placeholder.svg" alt={item.product_name} className="h-full w-full object-cover" />
-                  </div>
-                ))}
-                {order.items.length > 4 && (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-100 text-sm text-muted-foreground">
-                    +{order.items.length - 4}
-                  </div>
-                )}
-                <div className="ml-auto">
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1 text-sm text-muted-foreground">
+                  {order.items.slice(0, 3).map((item) => (
+                    <span key={item.id}>
+                      {item.product_name} × {item.quantity}
+                      {order.items.indexOf(item) < Math.min(order.items.length, 3) - 1 ? ", " : ""}
+                    </span>
+                  ))}
+                  {order.items.length > 3 && <span> +{order.items.length - 3} more</span>}
                 </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
               </div>
             </Link>
           ))}

@@ -119,6 +119,7 @@ export interface OrderItem {
   product_price: number
   quantity: number
   subtotal: number
+  thumbnail?: string
 }
 
 export interface Review {

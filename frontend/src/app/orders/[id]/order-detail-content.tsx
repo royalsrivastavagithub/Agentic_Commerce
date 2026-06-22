@@ -100,9 +100,11 @@ function OrderDetailInner() {
           <div className="divide-y">
             {order.items.map((item) => (
               <div key={item.id} className="flex items-center gap-4 px-4 py-3">
-                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
-                  <img src="/placeholder.svg" alt={item.product_name} className="h-full w-full object-cover" />
-                </div>
+                {item.thumbnail && (
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
+                    <img src={item.thumbnail} alt={item.product_name} className="h-full w-full object-cover" />
+                  </div>
+                )}
                 <div className="flex-1">
                   <p className="text-sm font-medium">{item.product_name}</p>
                   <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ₹{item.product_price.toFixed(2)}</p>

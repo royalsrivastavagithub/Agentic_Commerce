@@ -42,6 +42,7 @@ class OrderItemResponse(BaseModel):
     product_price: float
     quantity: int
     subtotal: float
+    thumbnail: Optional[str] = None
 
 
 class OrderResponse(BaseModel):

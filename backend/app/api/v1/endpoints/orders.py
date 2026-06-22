@@ -190,6 +190,7 @@ def verify_payment(
             product_price=product.price,
             quantity=cart_item.quantity,
             subtotal=item_subtotal,
+            thumbnail=product.thumbnail,
         )
         db.add(order_item)
         product.stock -= cart_item.quantity
