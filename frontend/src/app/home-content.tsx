@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
-import type { Product, ProductListResponse, Category } from "@/types/api"
+import type { Product, ProductListResponse } from "@/types/api"
 import Link from "next/link"
 import { Star, ChevronRight, Sparkles, Truck, RotateCcw, Shield } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
@@ -10,12 +10,7 @@ import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 export default function HomeContent() {
   const { data: featured } = useQuery({
     queryKey: ["home-featured"],
-    queryFn: () => api.get<ProductListResponse>("/products?skip=0&limit=8"),
-  })
-
-  const { data: categories } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => api.get<Category[]>("/categories"),
+    queryFn: () => api.get<ProductListResponse>("/products/featured"),
   })
 
   const products = featured?.products ?? []
@@ -32,20 +27,7 @@ export default function HomeContent() {
             <p className="mt-4 max-w-2xl text-base text-gray-300 sm:text-lg">
               Discover amazing products at unbeatable prices. Free shipping on orders over ₹500.
             </p>
-            <div className="mt-8 flex gap-4">
-              <Link
-                href="/products"
-                className="rounded-full bg-amazon-accent px-8 py-3 text-sm font-semibold text-amazon-nav shadow-sm hover:brightness-95"
-              >
-                Shop Now
-              </Link>
-              <Link
-                href="/products?search=deals"
-                className="rounded-full border border-white/30 px-8 py-3 text-sm font-semibold text-white hover:bg-white/10"
-              >
-                Today&apos;s Deals
-              </Link>
-            </div>
+
           </div>
         </div>
       </div>
@@ -86,28 +68,6 @@ export default function HomeContent() {
           </div>
         </section>
 
-        {/* Categories */}
-        {categories && categories.length > 0 && (
-          <section>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Shop by Category</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-              {categories.map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`/products?category=${encodeURIComponent(cat.name)}`}
-                  className="flex flex-col items-center gap-2 rounded-lg border bg-white p-4 text-center transition-shadow hover:shadow-md"
-                >
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amazon-accent/10 text-xl font-bold text-amazon-link">
-                    {cat.name[0].toUpperCase()}
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">{cat.name}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </Shell>
   )

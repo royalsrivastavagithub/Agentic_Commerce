@@ -66,6 +66,22 @@ def search_products(
 
 
 @router.get(
+    "/products/featured",
+    response_model=ProductsResponse,
+    response_model_by_alias=True,
+    summary="List featured products with pagination",
+)
+def get_featured_products(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(8, ge=1),
+    db: Session = Depends(get_db),
+):
+    total = db.query(Product).filter(Product.is_featured.is_(True)).count()
+    products = db.query(Product).filter(Product.is_featured.is_(True)).offset(skip).limit(limit).all()
+    return ProductsResponse(products=products, total=total, skip=skip, limit=limit)
+
+
+@router.get(
     "/products/{product_id}",
     response_model=ProductSchema,
     response_model_by_alias=True,

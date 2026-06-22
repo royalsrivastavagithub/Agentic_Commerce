@@ -41,6 +41,7 @@ class ProductSchema(BaseModel):
     meta: MetaSchema
     images: list[str]
     thumbnail: str
+    is_featured: bool = False
 
 
 class ProductCreate(BaseModel):
@@ -68,6 +69,7 @@ class ProductCreate(BaseModel):
     meta: MetaSchema
     images: list[str]
     thumbnail: str
+    is_featured: bool = False
 
 
 class ProductUpdate(BaseModel):
@@ -93,6 +95,7 @@ class ProductUpdate(BaseModel):
     meta: Optional[MetaSchema] = None
     images: Optional[list[str]] = None
     thumbnail: Optional[str] = None
+    is_featured: Optional[bool] = None
 
 
 class ProductsResponse(BaseModel):

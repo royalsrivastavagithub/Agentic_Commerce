@@ -45,6 +45,7 @@ export interface Product {
   images: string[]
   thumbnail: string
   category?: string
+  is_featured: boolean
 }
 
 export interface ProductListResponse {

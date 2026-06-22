@@ -58,7 +58,7 @@ def _seed_categories(client, headers, products) -> dict[str, int]:
     names = sorted({p["category"] for p in products})
     mapping = {}
     for name in names:
-        resp = client.post(f"{API_PREFIX}/categories", json={"name": name}, headers=headers)
+        resp = client.post(f"{API_PREFIX}/admin/categories", json={"name": name}, headers=headers)
         if resp.status_code == 201:
             mapping[name] = resp.json()["id"]
             print(f"  Created category '{name}' -> id {resp.json()['id']}")
@@ -88,7 +88,7 @@ def seed(force: bool = False) -> None:
         if resp.status_code == 200:
             existing = resp.json().get("products", [])
             for p in existing:
-                client.delete(f"{API_PREFIX}/products/{p['id']}", headers=headers)
+                client.delete(f"{API_PREFIX}/admin/products/{p['id']}", headers=headers)
             print(f"Deleted {len(existing)} existing products")
         else:
             print("Could not fetch existing products; proceeding anyway")
@@ -97,11 +97,15 @@ def seed(force: bool = False) -> None:
         cat_resp = client.get(f"{API_PREFIX}/categories")
         if cat_resp.status_code == 200:
             for cat in cat_resp.json():
-                client.delete(f"{API_PREFIX}/categories/{cat['id']}", headers=headers)
+                client.delete(f"{API_PREFIX}/admin/categories/{cat['id']}", headers=headers)
             print(f"Deleted {len(cat_resp.json())} existing categories")
 
     print("Creating categories…")
     cat_mapping = _seed_categories(client, headers, products)
+
+    # Mark first 10 products as featured
+    for i, p in enumerate(products):
+        p["is_featured"] = i < 10
 
     created = 0
     skipped = 0
@@ -115,7 +119,7 @@ def seed(force: bool = False) -> None:
             print(f"  Error: unknown category '{cat_name}' for product {p.get('id')}")
             continue
         p["category_id"] = cat_id
-        resp = client.post(f"{API_PREFIX}/products", json=p, headers=headers)
+        resp = client.post(f"{API_PREFIX}/admin/products", json=p, headers=headers)
         if resp.status_code == 201:
             created += 1
         elif resp.status_code == 409:

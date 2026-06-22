@@ -717,6 +717,70 @@ class TestGetProductEdgeCases:
         assert resp.status_code == 404
 
 
+class TestFeaturedProducts:
+    def test_empty_featured(self, client: TestClient):
+        resp = client.get("/api/v1/products/featured")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["products"] == []
+        assert body["total"] == 0
+
+    def test_returns_featured_only(self, client: TestClient, admin_token_headers):
+        p1 = api_create_product(client, {"sku": "FT-001", "is_featured": True}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "FT-002", "is_featured": False}, headers=admin_token_headers)
+        api_create_product(client, {"sku": "FT-003"}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products/featured")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["products"][0]["id"] == p1["id"]
+        assert body["products"][0]["is_featured"] is True
+
+    def test_pagination(self, client: TestClient, admin_token_headers):
+        for i in range(5):
+            api_create_product(client, {"sku": f"FT-PAG-{i}", "is_featured": True}, headers=admin_token_headers)
+
+        resp = client.get("/api/v1/products/featured?skip=0&limit=3")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["products"]) == 3
+        assert body["total"] == 5
+
+        resp2 = client.get("/api/v1/products/featured?skip=3&limit=3")
+        assert len(resp2.json()["products"]) == 2
+
+    def test_defaults_to_false(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "FT-DEF"}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/featured")
+        assert resp.json()["total"] == 0
+
+    def test_update_sets_is_featured(self, client: TestClient, admin_token_headers):
+        created = api_create_product(client, {"sku": "FT-UPD"}, headers=admin_token_headers)
+        pid = created["id"]
+
+        resp = client.get("/api/v1/products/featured")
+        assert resp.json()["total"] == 0
+
+        client.put(
+            f"/api/v1/admin/products/{pid}",
+            json={"is_featured": True},
+            headers=admin_token_headers,
+        )
+
+        resp = client.get("/api/v1/products/featured")
+        assert resp.json()["total"] == 1
+        assert resp.json()["products"][0]["id"] == pid
+
+    def test_returns_camel_case(self, client: TestClient, admin_token_headers):
+        api_create_product(client, {"sku": "FT-CAMEL", "is_featured": True}, headers=admin_token_headers)
+        resp = client.get("/api/v1/products/featured")
+        product = resp.json()["products"][0]
+        assert "discountPercentage" in product
+        assert "warrantyInformation" in product
+        assert "is_featured" in product
+
+
 class TestProductModel:
     def test_product_created_with_all_fields_in_db(self, client: TestClient, db: Session, admin_token_headers):
         created = api_create_product(client, headers=admin_token_headers)
