@@ -48,7 +48,7 @@ export interface Product {
 }
 
 export interface ProductListResponse {
-  items: Product[]
+  products: Product[]
   total: number
   skip: number
   limit: number
