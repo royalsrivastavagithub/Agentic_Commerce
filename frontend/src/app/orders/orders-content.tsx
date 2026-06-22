@@ -6,7 +6,7 @@ import type { Order } from "@/types/api"
 import { useAuthStore } from "@/stores/auth-store"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Package, ChevronRight } from "lucide-react"
+import { Package } from "lucide-react"
 import { useEffect } from "react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 
@@ -94,16 +94,18 @@ function OrdersInner() {
                 </span>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex-1 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
                   {order.items.slice(0, 3).map((item) => (
-                    <span key={item.id}>
-                      {item.product_name} × {item.quantity}
-                      {order.items.indexOf(item) < Math.min(order.items.length, 3) - 1 ? ", " : ""}
-                    </span>
+                    <div key={item.id} className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-muted">
+                      <img src={item.thumbnail || "/placeholder.svg"} alt={item.product_name} className="h-full w-full object-cover" />
+                    </div>
                   ))}
-                  {order.items.length > 3 && <span> +{order.items.length - 3} more</span>}
+                  {order.items.length > 3 && (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
+                      +{order.items.length - 3}
+                    </div>
+                  )}
                 </div>
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
               </div>
             </Link>
           ))}

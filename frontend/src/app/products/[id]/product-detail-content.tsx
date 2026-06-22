@@ -31,7 +31,6 @@ export default function ProductDetailContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cart"] })
       toast.success("Added to cart")
-      router.push("/cart")
     },
     onError: (err: Error) => toast.error(err.message),
   })
