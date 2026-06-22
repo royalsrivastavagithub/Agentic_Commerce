@@ -10,9 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+
 import { useAuthStore } from "@/stores/auth-store"
-import { useCartStore } from "@/stores/cart-store"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import type { Cart, Product, ProductListResponse, Category } from "@/types/api"
@@ -22,7 +21,6 @@ import { useTheme } from "next-themes"
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user, logout } = useAuthStore()
-  const { isCartOpen, openCart, closeCart } = useCartStore()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchCategory, setSearchCategory] = useState("all")
   const [debouncedQuery, setDebouncedQuery] = useState("")
@@ -43,7 +41,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
   })
 
   const cartCount = cart?.items?.reduce((sum, i) => sum + i.quantity, 0) ?? 0
-  const cartTotal = cart?.total ?? 0
 
   const { data: suggestions } = useQuery({
     queryKey: ["search-suggestions", debouncedQuery, searchCategory],
@@ -91,7 +88,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       router.push("/auth/login")
       return
     }
-    openCart()
+    router.push("/cart")
   }
 
   return (
@@ -248,77 +245,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </button>
 
             {/* Cart trigger — guarded */}
-            <Sheet open={isAuthenticated ? isCartOpen : false} onOpenChange={(open) => open && handleCartClick()}>
-              <SheetTrigger
-                onClick={(e) => {
-                  if (!isAuthenticated) {
-                    e.preventDefault()
-                    router.push("/auth/login")
-                  }
-                }}
-                className="flex items-end gap-1 px-1 py-0.5 text-white hover:opacity-80"
-                aria-label="Cart"
-              >
-                <div className="relative">
-                  <ShoppingCart className="h-6 w-6 sm:h-7 sm:w-7" />
-                  {cartCount > 0 && isAuthenticated && (
-                    <Badge className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amazon-accent p-0 text-[10px] font-bold text-amazon-nav sm:h-5 sm:w-5 sm:text-xs">
-                      {cartCount}
-                    </Badge>
-                  )}
-                </div>
-                <span className="hidden text-xs font-bold leading-tight sm:inline">Cart</span>
-              </SheetTrigger>
-              <SheetContent className="flex w-full flex-col sm:max-w-md">
-                <SheetHeader>
-                  <SheetTitle>Shopping Cart</SheetTitle>
-                </SheetHeader>
-                <div className="flex-1 overflow-auto">
-                  {!cart?.items?.length ? (
-                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                      Your cart is empty
-                    </div>
-                  ) : (
-                    <div className="space-y-4 p-4">
-                      {cart.items.map((item) => (
-                        <div key={item.id} className="flex gap-4 rounded-lg border p-3">
-                          <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-muted">
-                            <img
-                              src={item.product.thumbnail || "/placeholder.svg"}
-                              alt={item.product.title}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                          <div className="flex flex-1 flex-col justify-between">
-                            <div>
-                              <p className="text-sm font-medium">{item.product.title}</p>
-                              <p className="text-sm text-muted-foreground">
-                                ₹{item.product.price} × {item.quantity}
-                              </p>
-                            </div>
-                            <p className="text-sm font-semibold">₹{(item.product.price * item.quantity).toFixed(2)}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="border-t p-4">
-                  <div className="mb-4 flex justify-between text-base font-semibold">
-                    <span>Total</span>
-                    <span>₹{cartTotal.toFixed(2)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { closeCart(); router.push("/cart") }}
-                    className="w-full rounded-lg bg-amazon-cart px-4 py-2 text-sm font-semibold text-black hover:brightness-95 disabled:opacity-50"
-                    disabled={!cart?.items?.length}
-                  >
-                    View Cart
-                  </button>
-                </div>
-              </SheetContent>
-            </Sheet>
+            <button
+              type="button"
+              onClick={handleCartClick}
+              className="flex items-end gap-1 px-1 py-0.5 text-white hover:opacity-80"
+              aria-label="Cart"
+            >
+              <div className="relative">
+                <ShoppingCart className="h-6 w-6 sm:h-7 sm:w-7" />
+                {cartCount > 0 && isAuthenticated && (
+                  <Badge className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amazon-accent p-0 text-[10px] font-bold text-amazon-nav sm:h-5 sm:w-5 sm:text-xs">
+                    {cartCount}
+                  </Badge>
+                )}
+              </div>
+              <span className="hidden text-xs font-bold leading-tight sm:inline">Cart</span>
+            </button>
           </nav>
         </div>
 

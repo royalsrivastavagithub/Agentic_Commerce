@@ -3,11 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import type { Product, Review } from "@/types/api"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Star, ChevronRight } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
-import { useCartStore } from "@/stores/cart-store"
 import { toast } from "sonner"
 import { useState } from "react"
 import Link from "next/link"
@@ -17,8 +16,8 @@ import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 export default function ProductDetailContent() {
   const { id } = useParams<{ id: string }>()
   const { isAuthenticated } = useAuthStore()
-  const { openCart } = useCartStore()
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
 
@@ -32,7 +31,7 @@ export default function ProductDetailContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cart"] })
       toast.success("Added to cart")
-      openCart()
+      router.push("/cart")
     },
     onError: (err: Error) => toast.error(err.message),
   })
