@@ -26,11 +26,16 @@ async function request<T>(
     headers["Content-Type"] = "application/json"
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    })
+  } catch (err) {
+    throw new ApiError(0, err instanceof TypeError ? "Network error — check your connection" : "Request failed")
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }))

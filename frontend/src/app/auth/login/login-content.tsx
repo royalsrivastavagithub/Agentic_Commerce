@@ -43,8 +43,9 @@ export default function LoginContent() {
       login(data.access_token, data.user)
       toast.success("Signed in with Google")
       router.push("/")
-    } catch {
-      toast.error("Google sign-in failed")
+    } catch (err) {
+      console.error("Google sign-in error:", err)
+      toast.error(err instanceof Error ? err.message : "Google sign-in failed")
     }
   }
 
