@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 minutes
 
+    # CORS configuration — list of origins allowed for cross-origin requests.
+    # In production, replace with your frontend's deployed URL.
+    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+
     # Razorpay payment gateway configuration
     RAZORPAY_KEY_ID: str = Field(
         default="",
