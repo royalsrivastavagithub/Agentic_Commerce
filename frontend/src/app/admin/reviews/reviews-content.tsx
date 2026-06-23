@@ -5,18 +5,20 @@ import { api } from "@/lib/api-client"
 import type { Review } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useState } from "react"
-import { Trash2, Star } from "lucide-react"
+import { Search, Trash2, Star } from "lucide-react"
 
 export default function ReviewsContent() {
   const queryClient = useQueryClient()
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [search, setSearch] = useState("")
 
   const { data: reviews, isLoading } = useQuery({
-    queryKey: ["admin-reviews"],
-    queryFn: () => api.get<Review[]>("/admin/reviews"),
+    queryKey: ["admin-reviews", search],
+    queryFn: () => api.get<Review[]>(`/admin/reviews?${search ? `product_id=${search}` : ""}`),
   })
 
   const deleteMutation = useMutation({
@@ -32,6 +34,11 @@ export default function ReviewsContent() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Reviews</h1>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input placeholder="Search by product ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      </div>
 
       {isLoading ? (
         <div className="h-64 animate-pulse rounded-lg bg-muted" />
@@ -69,16 +76,16 @@ export default function ReviewsContent() {
                 </TableCell>
                 <TableCell>
                   <Dialog open={deleteId === r.id} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(r.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(r.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Delete Review</DialogTitle>
                         <DialogDescription>Delete this review? This will recalculate the product&apos;s rating.</DialogDescription>
                       </DialogHeader>
                       <DialogFooter>
-                        <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
                         <Button variant="destructive" onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}>
                           {deleteMutation.isPending ? "Deleting..." : "Delete"}
                         </Button>

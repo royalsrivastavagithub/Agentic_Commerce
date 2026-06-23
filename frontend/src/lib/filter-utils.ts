@@ -10,6 +10,7 @@ export function buildFilterParams(
   minPrice: string,
   maxPrice: string,
   minRating: number,
+  minDiscount: number,
   priceMin: number,
   priceMax: number,
 ): string {
@@ -17,5 +18,6 @@ export function buildFilterParams(
   if (minPrice && parseFloat(minPrice) > priceMin) s += `&min_price=${parseFloat(minPrice)}`
   if (maxPrice && parseFloat(maxPrice) < priceMax) s += `&max_price=${parseFloat(maxPrice)}`
   if (minRating > 0) s += `&min_rating=${minRating}`
+  if (minDiscount > 0) s += `&min_discount=${minDiscount}`
   return s
 }

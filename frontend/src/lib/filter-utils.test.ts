@@ -24,43 +24,54 @@ describe("buildFilterParams", () => {
   const priceMax = 36999.99
 
   it("returns empty string when no filters set", () => {
-    expect(buildFilterParams("", "", 0, priceMin, priceMax)).toBe("")
+    expect(buildFilterParams("", "", 0, 0, priceMin, priceMax)).toBe("")
   })
 
   it("includes min_price when above global minimum", () => {
-    const result = buildFilterParams("100", "", 0, priceMin, priceMax)
+    const result = buildFilterParams("100", "", 0, 0, priceMin, priceMax)
     expect(result).toContain("&min_price=100")
   })
 
   it("omits min_price when equal to global minimum", () => {
-    const result = buildFilterParams("0.79", "", 0, priceMin, priceMax)
+    const result = buildFilterParams("0.79", "", 0, 0, priceMin, priceMax)
     expect(result).not.toContain("min_price")
   })
 
   it("includes max_price when below global maximum", () => {
-    const result = buildFilterParams("", "500", 0, priceMin, priceMax)
+    const result = buildFilterParams("", "500", 0, 0, priceMin, priceMax)
     expect(result).toContain("&max_price=500")
   })
 
   it("omits max_price when equal to global maximum", () => {
-    const result = buildFilterParams("", "36999.99", 0, priceMin, priceMax)
+    const result = buildFilterParams("", "36999.99", 0, 0, priceMin, priceMax)
     expect(result).not.toContain("max_price")
   })
 
   it("includes min_rating when greater than 0", () => {
-    const result = buildFilterParams("", "", 4, priceMin, priceMax)
+    const result = buildFilterParams("", "", 4, 0, priceMin, priceMax)
     expect(result).toContain("&min_rating=4")
   })
 
   it("omits min_rating when 0", () => {
-    const result = buildFilterParams("", "", 0, priceMin, priceMax)
+    const result = buildFilterParams("", "", 0, 0, priceMin, priceMax)
     expect(result).not.toContain("min_rating")
   })
 
+  it("includes min_discount when greater than 0", () => {
+    const result = buildFilterParams("", "", 0, 10, priceMin, priceMax)
+    expect(result).toContain("&min_discount=10")
+  })
+
+  it("omits min_discount when 0", () => {
+    const result = buildFilterParams("", "", 0, 0, priceMin, priceMax)
+    expect(result).not.toContain("min_discount")
+  })
+
   it("combines all filters", () => {
-    const result = buildFilterParams("100", "500", 4, priceMin, priceMax)
+    const result = buildFilterParams("100", "500", 4, 10, priceMin, priceMax)
     expect(result).toContain("&min_price=100")
     expect(result).toContain("&max_price=500")
     expect(result).toContain("&min_rating=4")
+    expect(result).toContain("&min_discount=10")
   })
 })

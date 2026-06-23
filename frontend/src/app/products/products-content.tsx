@@ -30,6 +30,7 @@ export default function ProductsContent() {
   const minPriceFromUrl = searchParams.get("min_price") ?? ""
   const maxPriceFromUrl = searchParams.get("max_price") ?? ""
   const minRatingFromUrl = parseInt(searchParams.get("min_rating") ?? "0", 10)
+  const minDiscountFromUrl = parseInt(searchParams.get("min_discount") ?? "0", 10)
   const [category, setCategory] = useState<string>("all")
   const [urlReady, setUrlReady] = useState(false)
   const [sort, setSort] = useState<string>("default")
@@ -37,6 +38,7 @@ export default function ProductsContent() {
   const [minPrice, setMinPrice] = useState("")
   const [maxPrice, setMaxPrice] = useState("")
   const [minRating, setMinRating] = useState<number>(0)
+  const [minDiscount, setMinDiscount] = useState<number>(0)
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -60,8 +62,9 @@ export default function ProductsContent() {
     if (minPriceFromUrl) setMinPrice(minPriceFromUrl)
     if (maxPriceFromUrl) setMaxPrice(maxPriceFromUrl)
     if (minRatingFromUrl > 0) setMinRating(minRatingFromUrl)
+    if (minDiscountFromUrl > 0) setMinDiscount(minDiscountFromUrl)
     setUrlReady(true)
-  }, [categoryFromUrl, sortFromUrl, pageFromUrl, minPriceFromUrl, maxPriceFromUrl, minRatingFromUrl])
+  }, [categoryFromUrl, sortFromUrl, pageFromUrl, minPriceFromUrl, maxPriceFromUrl, minRatingFromUrl, minDiscountFromUrl])
 
   useEffect(() => {
     setPage(1)
@@ -81,6 +84,7 @@ export default function ProductsContent() {
     if (minPrice) params.set("min_price", minPrice)
     if (maxPrice) params.set("max_price", maxPrice)
     if (minRating > 0) params.set("min_rating", String(minRating))
+    if (minDiscount > 0) params.set("min_discount", String(minDiscount))
     const qs = params.toString()
     router.replace(`/products${qs ? `?${qs}` : ""}`, { scroll: false })
   }, [sort, page, minPrice, maxPrice, minRating, searchFromUrl, categoryFromUrl, urlReady])
@@ -98,24 +102,25 @@ export default function ProductsContent() {
     setMinPrice("")
     setMaxPrice("")
     setMinRating(0)
+    setMinDiscount(0)
   }
 
-  const hasFilters = category !== "all" || sort !== "default" || minRating > 0 ||
+  const hasFilters = category !== "all" || sort !== "default" || minRating > 0 || minDiscount > 0 ||
     (minPrice !== "" && parseFloat(minPrice) > priceMin) ||
     (maxPrice !== "" && parseFloat(maxPrice) < priceMax)
 
   const skip = (page - 1) * LIMIT
   const catId = category !== "all" ? categoryIdMap.get(category) : undefined
   const productsQueryKey = searchFromUrl
-    ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating, sort]
-    : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating, priceMin, priceMax]
+    ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating, minDiscount, sort]
+    : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating, minDiscount, priceMin, priceMax]
 
   const { data: productsData, isLoading } = useQuery({
     queryKey: productsQueryKey,
     enabled: urlReady && (category === "all" || catId !== undefined),
     queryFn: () => {
       const sortParams = buildSortParams(sort)
-      const filterParams = buildFilterParams(minPrice, maxPrice, minRating, priceMin, priceMax)
+      const filterParams = buildFilterParams(minPrice, maxPrice, minRating, minDiscount, priceMin, priceMax)
       if (searchFromUrl) {
         let url = `/products/search?q=${encodeURIComponent(searchFromUrl)}&skip=${skip}&limit=${LIMIT}`
         if (catId) url += `&category_id=${catId}`
@@ -209,6 +214,24 @@ export default function ProductsContent() {
                 </div>
               </div>
 
+              {/* Discount filter */}
+              <div>
+                <h3 className="mb-1.5 text-sm font-bold text-foreground">Discount</h3>
+                <div className="space-y-1">
+                  {[10, 20, 30, 50].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setMinDiscount(minDiscount === d ? 0 : d)}
+                      className={`flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-gray-50 ${
+                        minDiscount === d ? "bg-gray-100 font-medium" : "text-gray-600"
+                      }`}
+                    >
+                      <span className="text-xs">{d}% off or more</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {hasFilters && (
                 <button onClick={resetFilters} className="text-sm font-medium text-amazon-link hover:underline">
                   Clear all filters
@@ -290,7 +313,7 @@ export default function ProductsContent() {
 }
 
 function ProductCard({ product }: { product: Product }) {
-  const discounted = product.price * (1 - (product.discount_percentage || 0) / 100)
+  const discounted = product.price * (1 - (product.discountPercentage ?? product.discount_percentage ?? 0) / 100)
 
   return (
     <Link
@@ -338,12 +361,12 @@ function ProductCard({ product }: { product: Product }) {
       </div>
 
       <div className="flex w-24 shrink-0 flex-col items-end justify-center sm:w-28">
-        {product.discount_percentage > 0 ? (
+        {(product.discountPercentage ?? product.discount_percentage ?? 0) > 0 ? (
           <>
             <span className="text-lg font-bold sm:text-xl">₹{discounted.toFixed(2)}</span>
             <span className="text-xs text-muted-foreground line-through">₹{product.price.toFixed(2)}</span>
             <span className="mt-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
-              -{product.discount_percentage}%
+              -{product.discountPercentage ?? product.discount_percentage ?? 0}%
             </span>
           </>
         ) : (

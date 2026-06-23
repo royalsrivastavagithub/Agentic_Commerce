@@ -28,6 +28,7 @@ export interface Product {
   title: string
   description: string
   category_id: number
+  category?: string
   price: number
   discount_percentage: number
   rating: number
@@ -46,8 +47,8 @@ export interface Product {
   meta: Record<string, string>
   images: string[]
   thumbnail: string
-  category?: string
   is_featured: boolean
+  discountPercentage?: number
 }
 
 export interface ProductListResponse {

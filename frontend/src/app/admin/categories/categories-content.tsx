@@ -6,10 +6,10 @@ import type { Category } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { useState } from "react"
-import { Pencil, Trash2, Plus } from "lucide-react"
+import { useState, useMemo } from "react"
+import { Search, Pencil, Trash2, Plus } from "lucide-react"
 
 export default function CategoriesContent() {
   const queryClient = useQueryClient()
@@ -18,6 +18,7 @@ export default function CategoriesContent() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [createName, setCreateName] = useState("")
+  const [catSearch, setCatSearch] = useState("")
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ["admin-categories"],
@@ -56,13 +57,23 @@ export default function CategoriesContent() {
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const cats = categories || []
+  const cats = useMemo(() => {
+    if (!categories) return []
+    if (!catSearch.trim()) return categories
+    return categories.filter((c) => c.name.toLowerCase().includes(catSearch.toLowerCase()))
+  }, [categories, catSearch])
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Categories</h1>
-        <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="mr-1 h-4 w-4" /> Add Category</Button>
+        <div className="flex items-center gap-2">
+          <div className="relative max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search categories..." value={catSearch} onChange={(e) => setCatSearch(e.target.value)} className="pl-9 h-9 text-sm" />
+          </div>
+          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="mr-1 h-4 w-4" /> Add Category</Button>
+        </div>
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogContent>
             <DialogHeader>
@@ -71,7 +82,7 @@ export default function CategoriesContent() {
             </DialogHeader>
             <Input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Category name" />
             <DialogFooter>
-              <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
               <Button onClick={() => createMutation.mutate(createName)} disabled={!createName.trim() || createMutation.isPending}>
                 {createMutation.isPending ? "Creating..." : "Create"}
               </Button>
@@ -110,7 +121,7 @@ export default function CategoriesContent() {
                       </DialogHeader>
                       <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
                       <DialogFooter>
-                        <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button variant="outline" onClick={() => {}}>Cancel</Button>
                         <Button onClick={() => updateMutation.mutate({ id: c.id, name: editName })} disabled={!editName.trim() || updateMutation.isPending}>
                           {updateMutation.isPending ? "Saving..." : "Save"}
                         </Button>
@@ -128,7 +139,7 @@ export default function CategoriesContent() {
                         <DialogDescription>Delete &quot;{c.name}&quot;? This cannot be undone if products reference it.</DialogDescription>
                       </DialogHeader>
                       <DialogFooter>
-                        <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
                         <Button variant="destructive" onClick={() => deleteMutation.mutate(c.id)} disabled={deleteMutation.isPending}>
                           {deleteMutation.isPending ? "Deleting..." : "Delete"}
                         </Button>

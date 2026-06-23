@@ -13,7 +13,13 @@ export default function HomeContent() {
     queryFn: () => api.get<ProductListResponse>("/products/featured?limit=10"),
   })
 
+  const { data: deals } = useQuery({
+    queryKey: ["home-deals"],
+    queryFn: () => api.get<ProductListResponse>("/products?min_discount=10&limit=8"),
+  })
+
   const products = featured?.products ?? []
+  const dealProducts = deals?.products ?? []
 
   return (
     <Shell>
@@ -53,6 +59,20 @@ export default function HomeContent() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Today's Deals */}
+        {dealProducts.length > 0 && (
+          <section className="mb-10">
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-foreground">Today&apos;s Deals</h2>
+            </div>
+            <div className="flex flex-col gap-3">
+              {dealProducts.map((product) => (
+                <FeaturedCard key={product.id} product={product} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Featured Products */}
         <section className="mb-10">
           <div className="mb-4">
@@ -71,7 +91,7 @@ export default function HomeContent() {
 }
 
 function FeaturedCard({ product }: { product: Product }) {
-  const discounted = product.price * (1 - (product.discount_percentage || 0) / 100)
+  const discounted = product.price * (1 - (product.discountPercentage ?? product.discount_percentage ?? 0) / 100)
 
   return (
     <Link
@@ -116,12 +136,12 @@ function FeaturedCard({ product }: { product: Product }) {
         </div>
       </div>
       <div className="flex w-24 shrink-0 flex-col items-end justify-center sm:w-28">
-        {product.discount_percentage > 0 ? (
+        {(product.discountPercentage ?? product.discount_percentage ?? 0) > 0 ? (
           <>
             <span className="text-lg font-bold sm:text-xl">₹{discounted.toFixed(2)}</span>
             <span className="text-xs text-muted-foreground line-through">₹{product.price.toFixed(2)}</span>
             <span className="mt-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
-              -{product.discount_percentage}%
+              -{product.discountPercentage ?? product.discount_percentage ?? 0}%
             </span>
           </>
         ) : (

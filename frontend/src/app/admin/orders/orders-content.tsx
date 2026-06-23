@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import type { Order } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Search } from "lucide-react"
 import { toast } from "sonner"
-import { useState, Fragment } from "react"
+import { useState, Fragment, useMemo } from "react"
 
 const statusColors: Record<string, string> = {
   PAID: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -20,11 +21,21 @@ const STATUSES = ["PAID", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"]
 
 export default function OrdersContent() {
   const queryClient = useQueryClient()
+  const [search, setSearch] = useState("")
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: () => api.get<Order[]>("/admin/orders"),
   })
+
+  const filtered = useMemo(() => {
+    if (!orders) return []
+    if (!search.trim()) return orders
+    const q = search.toLowerCase()
+    return orders.filter(
+      (o) => o.id.toString().includes(q) || o.shipping_name.toLowerCase().includes(q) || o.shipping_phone.includes(q),
+    )
+  }, [orders, search])
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
@@ -42,9 +53,14 @@ export default function OrdersContent() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Orders</h1>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input placeholder="Search orders..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      </div>
+
       {isLoading ? (
         <div className="h-64 animate-pulse rounded-lg bg-muted" />
-      ) : !orders?.length ? (
+      ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground">No orders found.</p>
       ) : (
         <Table>
@@ -59,7 +75,7 @@ export default function OrdersContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.map((o) => (
+            {filtered.map((o) => (
               <Fragment key={o.id}>
                 <TableRow className="cursor-pointer" onClick={() => setExpandedId(expandedId === o.id ? null : o.id)}>
                   <TableCell className="font-medium">#{o.id}</TableCell>

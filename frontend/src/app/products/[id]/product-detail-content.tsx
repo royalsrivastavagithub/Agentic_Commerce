@@ -104,7 +104,7 @@ export default function ProductDetailContent() {
     )
   }
 
-  const discounted = product.price * (1 - (product.discount_percentage || 0) / 100)
+  const discounted = product.price * (1 - (product.discountPercentage ?? product.discount_percentage ?? 0) / 100)
 
   return (
     <Shell>
@@ -182,22 +182,22 @@ export default function ProductDetailContent() {
 
             {/* Price box */}
             <div className="space-y-1">
-              {product.discount_percentage > 0 && (
+              {(product.discountPercentage ?? product.discount_percentage ?? 0) > 0 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground line-through">-{product.discount_percentage}%</span>
+                  <span className="text-sm text-muted-foreground line-through">-{product.discountPercentage ?? product.discount_percentage ?? 0}%</span>
                 </div>
               )}
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-medium text-price">
                   ₹{discounted.toFixed(2)}
                 </span>
-                {product.discount_percentage > 0 && (
+                {(product.discountPercentage ?? product.discount_percentage ?? 0) > 0 && (
                   <span className="text-sm text-muted-foreground line-through">
                     ₹{product.price.toFixed(2)}
                   </span>
                 )}
               </div>
-              {product.discount_percentage > 0 && (
+              {(product.discountPercentage ?? product.discount_percentage ?? 0) > 0 && (
                 <p className="text-sm text-green-700 dark:text-green-500">You save ₹{(product.price - discounted).toFixed(2)}</p>
               )}
             </div>

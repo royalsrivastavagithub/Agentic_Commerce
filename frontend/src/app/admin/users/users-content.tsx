@@ -6,7 +6,7 @@ import type { AdminUserResponse } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useState } from "react"
 import { Search, Shield, Ban, Trash2 } from "lucide-react"
@@ -122,7 +122,7 @@ export default function UsersContent() {
                         </div>
                       </div>
                       <DialogFooter>
-                        <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button variant="outline" onClick={() => setEditUser(null)}>Cancel</Button>
                         <Button onClick={() => editMutation.mutate({ id: u.id, data: { role: editRole, is_active: editActive } })} disabled={editMutation.isPending}>
                           {editMutation.isPending ? "Saving..." : "Save"}
                         </Button>
@@ -140,7 +140,7 @@ export default function UsersContent() {
                         <DialogDescription>Delete {u.email}? This cannot be undone.</DialogDescription>
                       </DialogHeader>
                       <DialogFooter>
-                        <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button variant="outline" onClick={() => {}}>Cancel</Button>
                         <Button variant="destructive" onClick={() => deleteMutation.mutate(u.id)} disabled={deleteMutation.isPending}>
                           {deleteMutation.isPending ? "Deleting..." : "Delete"}
                         </Button>

@@ -49,6 +49,7 @@ def get_products_by_category(
     min_price: float | None = Query(None, ge=0),
     max_price: float | None = Query(None, ge=0),
     min_rating: float | None = Query(None, ge=0, le=5),
+    min_discount: float | None = Query(None, ge=0, le=100),
     db: Session = Depends(get_db),
 ):
     category = db.query(Category).filter(Category.id == category_id).first()
@@ -65,6 +66,8 @@ def get_products_by_category(
         query = query.filter(Product.price <= max_price)
     if min_rating is not None:
         query = query.filter(Product.rating >= min_rating)
+    if min_discount is not None:
+        query = query.filter(Product.discount_percentage >= min_discount)
 
     total = query.count()
 
