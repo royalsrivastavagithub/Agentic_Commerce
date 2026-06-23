@@ -123,7 +123,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   </option>
                 ))}
               </select>
-              <div className="relative flex-1">
+              <div className="flex flex-1">
                 <input
                   type="text"
                   placeholder="Search products..."
@@ -133,11 +133,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     setSuggestionsOpen(true)
                   }}
                   onFocus={() => searchQuery.length >= 2 && setSuggestionsOpen(true)}
-                  className="w-full bg-white px-3 py-1.5 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                  className="flex-1 bg-white px-3 py-1.5 text-sm text-gray-900 outline-none placeholder:text-gray-400"
                 />
                 <button
                   type="submit"
-                  className="absolute right-0 top-0 flex h-full items-center justify-center bg-amazon-accent px-3 hover:brightness-95"
+                  className="flex items-center justify-center rounded-r-md bg-amazon-accent px-3 hover:brightness-95 h-full"
                 >
                   <Search className="h-5 w-5 text-amazon-nav" />
                 </button>
