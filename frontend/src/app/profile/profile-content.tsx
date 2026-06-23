@@ -137,21 +137,29 @@ function ProfileInner() {
           <EditableRow label="Date of Birth" field="date_of_birth" value={p?.date_of_birth || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending}
             renderEdit={(val, onChange) => (
               <div className="flex items-center gap-1">
-                {["DD", "MM", "YYYY"].map((ph, i) => {
+                 {["DD", "MM", "YYYY"].map((ph, i) => {
                   const maxLen = [2, 2, 4]
+                  const idx = [2, 1, 0] // parts = [year, month, day]; UI order = [day, month, year]
                   const parts = val ? val.split("-") : ["", "", ""]
                   return (
                     <span key={i} className="flex items-center gap-1">
                       <input type="text" inputMode="numeric" maxLength={maxLen[i]} placeholder={ph}
-                        value={["", undefined].includes(parts[i]) ? "" : parts[i]}
+                        value={["", undefined].includes(parts[idx[i]]) ? "" : parts[idx[i]]}
                         onChange={(e) => {
                           const v = e.target.value.replace(/\D/g, "").slice(0, maxLen[i])
                           const newParts = [...parts]
-                          newParts[i] = v
+                          newParts[idx[i]] = v
                           onChange(newParts.join("-"))
                           if (v.length === maxLen[i] && i < 2) {
                             const next = (e.target.parentElement?.parentElement?.children[i * 2 + 1]?.querySelector("input")) as HTMLElement
                             setTimeout(() => next?.focus(), 10)
+                          }
+                        }}
+                        onBlur={() => {
+                          if (i < 2 && parts[idx[i]].length === 1) {
+                            const newParts = [...parts]
+                            newParts[idx[i]] = "0" + parts[idx[i]]
+                            onChange(newParts.join("-"))
                           }
                         }}
                         className={`w-${i < 2 ? "10" : "14"} rounded border px-1 py-1 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card`}

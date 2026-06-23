@@ -163,7 +163,14 @@ export default function SignupContent() {
                         setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
                         if (d.length === 2) (e.target.nextElementSibling as HTMLElement)?.focus()
                       }}
-                      onBlur={() => markTouched("date_of_birth")}
+                      onBlur={() => {
+                        markTouched("date_of_birth")
+                        const d = form.date_of_birth?.split("-")[2]
+                        if (d && d.length === 1) {
+                          const [y,m] = form.date_of_birth ? form.date_of_birth.split("-") : ["",""]
+                          setForm((f) => ({ ...f, date_of_birth: `${y||""}-${m||""}-0${d}` }))
+                        }
+                      }}
                       className="w-12 rounded border border-input bg-background px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card"
                     />
                     <span className="text-muted-foreground">/</span>
@@ -177,7 +184,14 @@ export default function SignupContent() {
                         setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
                         if (m.length === 2) setTimeout(() => (e.target.nextElementSibling?.nextElementSibling as HTMLElement)?.focus(), 10)
                       }}
-                      onBlur={() => markTouched("date_of_birth")}
+                      onBlur={() => {
+                        markTouched("date_of_birth")
+                        const m = form.date_of_birth?.split("-")[1]
+                        if (m && m.length === 1) {
+                          const [y,,d] = form.date_of_birth ? form.date_of_birth.split("-") : ["","",""]
+                          setForm((f) => ({ ...f, date_of_birth: `${y||""}-0${m}-${d||""}` }))
+                        }
+                      }}
                       className="w-12 rounded border border-input bg-background px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card"
                     />
                     <span className="text-muted-foreground">/</span>
