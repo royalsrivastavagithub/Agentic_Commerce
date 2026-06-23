@@ -37,11 +37,10 @@ function ProfileInner() {
   const [editField, setEditField] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
 
-  // Address form
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [editingAddr, setEditingAddr] = useState<Address | null>(null)
-  const [addrForm, setAddrForm] = useState({
-    label: "Home", street: "", city: "", state: "", pincode: "", country: "India",
+  // Address editing state
+  const [addingNewAddr, setAddingNewAddr] = useState(false)
+  const [newAddrData, setNewAddrData] = useState({
+    label: "", street: "", city: "", state: "", pincode: "", country: "India",
   })
 
   const { data: profile } = useQuery({
@@ -61,12 +60,14 @@ function ProfileInner() {
   })
 
   const createAddress = useMutation({
-    mutationFn: () => api.post("/users/me/addresses", addrForm),
+    mutationFn: (data: Record<string, unknown>) => api.post("/users/me/addresses", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] })
       toast.success("Address added")
-      setShowAddForm(false)
-      setAddrForm({ label: "Home", street: "", city: "", state: "", pincode: "", country: "India" })
+      setAddingNewAddr(false)
+      setNewAddrData({ label: "", street: "", city: "", state: "", pincode: "", country: "India" })
+      setEditField(null)
+      setEditValue("")
     },
     onError: (err: Error) => toast.error(err.message),
   })
@@ -77,7 +78,8 @@ function ProfileInner() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] })
       toast.success("Address updated")
-      setEditingAddr(null)
+      setEditField(null)
+      setEditValue("")
     },
     onError: (err: Error) => toast.error(err.message),
   })
@@ -86,6 +88,8 @@ function ProfileInner() {
     mutationFn: (addrId: number) => api.delete(`/users/me/addresses/${addrId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] })
+      setEditField(null)
+      setEditValue("")
       toast.success("Address deleted")
     },
     onError: (err: Error) => toast.error(err.message),
@@ -106,15 +110,19 @@ function ProfileInner() {
 
   const saveField = () => {
     if (!editField) return
+    if (editField.startsWith("addr-") && editField !== "addr-new-") {
+      const parts = editField.split("-")
+      const id = parseInt(parts[1], 10)
+      const field = parts.slice(2).join("-")
+      updateAddress.mutate({ id, data: { [field]: editValue } })
+      return
+    }
     updateProfile.mutate({ [editField]: editValue })
   }
 
-  const resetAddrForm = (addr?: Address) => {
-    if (addr) {
-      setAddrForm({ label: addr.label, street: addr.street, city: addr.city, state: addr.state, pincode: addr.pincode, country: addr.country || "India" })
-    } else {
-      setAddrForm({ label: "Home", street: "", city: "", state: "", pincode: "", country: "India" })
-    }
+  const startAddrEdit = (addr: Address | null, field: string, value: string) => {
+    setEditField(addr ? `addr-${addr.id}-${field}` : `addr-new-${field}`)
+    setEditValue(value)
   }
 
   return (
@@ -200,77 +208,51 @@ function ProfileInner() {
         <div className="mt-8">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-bold">Addresses</h2>
-            {!showAddForm && !editingAddr && (
-              <button onClick={() => { setShowAddForm(true); resetAddrForm() }}
-                className="flex items-center gap-1 rounded bg-amazon-link px-3 py-1.5 text-sm font-medium text-white hover:brightness-95">
+            {!addingNewAddr && (
+              <button onClick={() => {
+                setAddingNewAddr(true)
+                setNewAddrData({ label: "", street: "", city: "", state: "", pincode: "", country: "India" })
+              }} className="flex items-center gap-1 rounded bg-amazon-link px-3 py-1.5 text-sm font-medium text-white hover:brightness-95">
                 <Plus className="h-4 w-4" /> Add Address
               </button>
             )}
           </div>
 
-          {(showAddForm || editingAddr) && (
-            <div className="mb-4 space-y-3 rounded-lg border bg-muted/50 p-4">
-              <input placeholder="Label (Home/Work)" value={addrForm.label} onChange={(e) => setAddrForm({ ...addrForm, label: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-              <input placeholder="Street address" value={addrForm.street} onChange={(e) => setAddrForm({ ...addrForm, street: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-              <div className="grid grid-cols-2 gap-3">
-                <select value={addrForm.city} onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })} disabled={!addrForm.state} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card disabled:opacity-50 disabled:cursor-not-allowed">
-                  <option value="">{addrForm.state ? "Select city" : "Select state first"}</option>
-                  {addrForm.state && INDIA_LOCATIONS[addrForm.state]?.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                <select value={addrForm.state} onChange={(e) => { setAddrForm({ ...addrForm, state: e.target.value, city: '' }) }} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
-                  <option value="">State</option>
-                  {INDIA_STATES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <input placeholder="Pincode" inputMode="numeric" maxLength={6} value={addrForm.pincode} onChange={(e) => setAddrForm({ ...addrForm, pincode: e.target.value.replace(/\D/g, '') })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-              <div className="flex gap-2">
-                <button type="button"
-                  onClick={() => editingAddr ? updateAddress.mutate({ id: editingAddr.id, data: addrForm }) : createAddress.mutate()}
-                  disabled={createAddress.isPending || updateAddress.isPending || !addrForm.street || !addrForm.city || !addrForm.state || addrForm.pincode.length !== 6}
-                  className="rounded bg-amazon-link px-4 py-2 text-sm font-medium text-white hover:brightness-95 disabled:opacity-50">
-                  Save Address
-                </button>
-                <button type="button" onClick={() => { setShowAddForm(false); setEditingAddr(null) }} className="rounded border px-4 py-2 text-sm dark:border-border">Cancel</button>
-              </div>
-            </div>
-          )}
+          <div className="space-y-2">
+            {addresses.map((addr) => (
+              <AddrCard key={addr.id} addr={addr}
+                editField={editField} editValue={editValue}
+                setEditValue={setEditValue}
+                startAddrEdit={startAddrEdit} cancelEdit={cancelEdit}
+                saveField={saveField} isSaving={updateAddress.isPending}
+                onDelete={(id) => deleteAddress.mutate(id)}
+                deletingId={deletingId} setDeletingId={setDeletingId}
+              />
+            ))}
 
-          {addresses.length === 0 && !showAddForm && !editingAddr ? (
-            <p className="text-sm text-muted-foreground">No addresses saved.</p>
-          ) : (
-            <div className="space-y-2">
-              {addresses.map((addr) => (
-                <div key={addr.id} className="flex items-start justify-between rounded-md border bg-muted/50 p-3 text-sm dark:border-border">
-                  <div>
-                    <p className="font-medium">{addr.label}</p>
-                    <p className="text-muted-foreground">{addr.street}, {addr.city}, {addr.state} {addr.pincode}</p>
-                  </div>
-                  <div className="flex gap-1 shrink-0 ml-2">
-                    <button onClick={() => { setEditingAddr(addr); resetAddrForm(addr); setShowAddForm(false) }} className="p-1 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                    <Dialog>
-                      <DialogTrigger className="p-1 text-destructive"><Trash2 className="h-3.5 w-3.5" /></DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Delete Address</DialogTitle>
-                          <DialogDescription>Are you sure you want to delete this address?</DialogDescription>
-                        </DialogHeader>
-                        <div className="flex justify-end gap-3">
-                          <button type="button" className={buttonVariants({ variant: "outline" })} onClick={() => {}}>Cancel</button>
-                          <Button variant="destructive" onClick={() => { deleteAddress.mutate(addr.id); setDeletingId(addr.id) }} disabled={deleteAddress.isPending && deletingId === addr.id}>
-                            Delete
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            {addingNewAddr && (
+              <AddrCard addr={null}
+                editField={editField} editValue={editValue}
+                setEditValue={setEditValue}
+                startAddrEdit={startAddrEdit}
+                cancelEdit={() => { setAddingNewAddr(false); setEditField(null); setEditValue("") }}
+                saveField={() => {
+                  if (!newAddrData.street || !newAddrData.city || !newAddrData.state || newAddrData.pincode.length !== 6) return
+                  createAddress.mutate(newAddrData)
+                }}
+                isSaving={createAddress.isPending}
+                onDelete={() => {}}
+                deletingId={deletingId} setDeletingId={setDeletingId}
+                isNew={true}
+                newAddrData={newAddrData}
+                setNewAddrData={setNewAddrData as (d: any) => void}
+              />
+            )}
+
+            {addresses.length === 0 && !addingNewAddr && (
+              <p className="text-sm text-muted-foreground">No addresses saved.</p>
+            )}
+          </div>
         </div>
       </div>
     </Shell>
@@ -323,6 +305,156 @@ function EditableRow({ label, field, value, editField, editValue, setEditValue, 
           <Pencil className="h-3.5 w-3.5" />
         </button>
       )}
+    </div>
+  )
+}
+
+type AddrFieldProps = {
+  label: string; field: string; value: string
+  addrId: number | null
+  editField: string | null; editValue: string
+  setEditValue: (v: string) => void
+  startAddrEdit: (addr: Address | null, field: string, value: string) => void
+  cancelEdit: () => void
+  saveField: () => void
+  isSaving: boolean
+  renderEdit?: (val: string, onChange: (v: string) => void) => React.ReactNode
+}
+
+function AddrField({ label, field, value, addrId, editField, editValue, setEditValue, startAddrEdit, cancelEdit, saveField, isSaving, renderEdit }: AddrFieldProps) {
+  const fieldKey = addrId ? `addr-${addrId}-${field}` : `addr-new-${field}`
+  const isEditing = editField === fieldKey
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { if (isEditing && inputRef.current) inputRef.current.focus() }, [isEditing])
+
+  return (
+    <div className="flex items-center justify-between py-0.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        {isEditing ? (
+          <div className="mt-0.5 flex items-center gap-1">
+            {renderEdit ? renderEdit(editValue, setEditValue) : (
+              <input ref={inputRef} value={editValue} onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveField()}
+                className="flex-1 rounded border px-2 py-0.5 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+            )}
+            <button onClick={saveField} disabled={isSaving} className="p-0.5 text-green-600"><Check className="h-3.5 w-3.5" /></button>
+            <button onClick={cancelEdit} className="p-0.5 text-muted-foreground"><X className="h-3.5 w-3.5" /></button>
+          </div>
+        ) : (
+          <p className="text-sm">{value || "-"}</p>
+        )}
+      </div>
+      {!isEditing && (
+        <button onClick={() => startAddrEdit(addrId ? { id: addrId } as Address : null, field, value || "")} className="p-1 text-muted-foreground hover:text-foreground shrink-0 ml-1">
+          <Pencil className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+type AddrCardProps = {
+  addr: Address | null
+  editField: string | null; editValue: string
+  setEditValue: (v: string) => void
+  startAddrEdit: (addr: Address | null, field: string, value: string) => void
+  cancelEdit: () => void
+  saveField: () => void
+  isSaving: boolean
+  onDelete: (id: number) => void
+  deletingId: number | null
+  setDeletingId: (id: number | null) => void
+  isNew?: boolean
+  newAddrData?: { label: string; street: string; city: string; state: string; pincode: string; country: string }
+  setNewAddrData?: (d: any) => void
+}
+
+function AddrCard({
+  addr, editField, editValue, setEditValue, startAddrEdit, cancelEdit, saveField,
+  isSaving, onDelete, deletingId, setDeletingId,
+  isNew, newAddrData, setNewAddrData,
+}: AddrCardProps) {
+  const addrId = addr?.id ?? null
+
+  const sharedFieldProps = { editField, editValue, setEditValue, startAddrEdit, cancelEdit, saveField, isSaving, addrId }
+
+  if (isNew) {
+    const nd = newAddrData!
+    const setNd = setNewAddrData!
+    return (
+      <div className="rounded-md border bg-muted/30 p-3 text-sm dark:border-border">
+        <input placeholder="Label (Home/Work)" value={nd.label} onChange={(e) => setNd({ ...nd, label: e.target.value })} className="mb-2 w-full rounded border px-2 py-1 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+        <input placeholder="Street address" value={nd.street} onChange={(e) => setNd({ ...nd, street: e.target.value })} className="mb-2 w-full rounded border px-2 py-1 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+        <div className="mb-2 grid grid-cols-2 gap-2">
+          <select value={nd.city} onChange={(e) => setNd({ ...nd, city: e.target.value })} disabled={!nd.state} className="rounded border px-2 py-1 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card disabled:opacity-50">
+            <option value="">{nd.state ? "Select city" : "State first"}</option>
+            {nd.state && INDIA_LOCATIONS[nd.state]?.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={nd.state} onChange={(e) => setNd({ ...nd, state: e.target.value, city: '' })} className="rounded border px-2 py-1 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
+            <option value="">State</option>
+            {INDIA_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <input placeholder="Pincode" inputMode="numeric" maxLength={6} value={nd.pincode} onChange={(e) => setNd({ ...nd, pincode: e.target.value.replace(/\D/g, '') })} className="mb-2 w-full rounded border px-2 py-1 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+        <div className="flex gap-2">
+          <button onClick={saveField} disabled={isSaving || !nd.street || !nd.city || !nd.state || nd.pincode.length !== 6}
+            className="rounded bg-amazon-link px-3 py-1 text-sm font-medium text-white hover:brightness-95 disabled:opacity-50">Save Address</button>
+          <button onClick={cancelEdit}
+            className="rounded border px-3 py-1 text-sm dark:border-border">Cancel</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-md border bg-muted/30 p-3 text-sm dark:border-border">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 space-y-0.5">
+          <AddrField label="Label" field="label" value={addr!.label} {...sharedFieldProps} />
+          <AddrField label="Street" field="street" value={addr!.street} {...sharedFieldProps} />
+          <AddrField label="City" field="city" value={addr!.city} {...sharedFieldProps}
+            renderEdit={(val, onChange) => (
+              <select value={val} onChange={(e) => onChange(e.target.value)}
+                className="flex-1 rounded border px-2 py-0.5 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
+                <option value="">Select city</option>
+                {INDIA_LOCATIONS[addr?.state || ""]?.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+          />
+          <AddrField label="State" field="state" value={addr!.state} {...sharedFieldProps}
+            renderEdit={(val, onChange) => (
+              <select value={val} onChange={(e) => onChange(e.target.value)}
+                className="flex-1 rounded border px-2 py-0.5 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
+                <option value="">State</option>
+                {INDIA_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+          />
+          <AddrField label="Pincode" field="pincode" value={addr!.pincode} {...sharedFieldProps}
+            renderEdit={(val, onChange) => (
+              <input type="text" inputMode="numeric" maxLength={6} value={val} onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
+                className="flex-1 rounded border px-2 py-0.5 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+            )}
+          />
+        </div>
+        <Dialog>
+          <DialogTrigger className="p-1 text-destructive shrink-0 ml-2 self-start mt-0.5"><Trash2 className="h-3.5 w-3.5" /></DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Address</DialogTitle>
+              <DialogDescription>Are you sure you want to delete this address?</DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-3">
+              <button type="button" className={buttonVariants({ variant: "outline" })} onClick={() => {}}>Cancel</button>
+              <Button variant="destructive" onClick={() => { onDelete(addr!.id); setDeletingId(addr!.id) }} disabled={isSaving && deletingId === addr!.id}>
+                Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   )
 }
