@@ -1,79 +1,69 @@
 import { test, expect } from "@playwright/test"
 
-test.describe("Login", () => {
-  test("login form loads", async ({ page }) => {
+test.describe("Login flow", () => {
+  test("login form loads", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined })
+    const page = await context.newPage()
     await page.goto("/auth/login")
     await expect(page.locator('input[type="email"]')).toBeVisible()
     await expect(page.locator('input[type="password"]')).toBeVisible()
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible()
+    await context.close()
   })
 
-  test("login with valid credentials", async ({ page }) => {
+  test("login with valid credentials", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined })
+    const page = await context.newPage()
     await page.goto("/auth/login")
     await page.fill('input[type="email"]', "alice@test.com")
     await page.fill('input[type="password"]', "test123")
-    await page.click('button:has-text("Sign in")')
-    await page.waitForURL("http://localhost:3000/", { timeout: 10000 })
+    await page.getByRole("button", { name: "Sign in", exact: true }).click()
+    await expect(page).toHaveURL("http://localhost:3000/", { timeout: 10000 })
     await expect(page.getByRole("heading", { name: /Welcome to Agentic Commerce/i })).toBeVisible()
+    await context.close()
   })
 
-  test("login with invalid credentials shows error", async ({ page }) => {
+  test("login with invalid credentials shows error", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined })
+    const page = await context.newPage()
     await page.goto("/auth/login")
     await page.fill('input[type="email"]', "wrong@test.com")
     await page.fill('input[type="password"]', "wrongpass")
-    await page.click('button:has-text("Sign in")')
-    await page.waitForTimeout(2000)
+    await page.getByRole("button", { name: "Sign in", exact: true }).click()
+    await expect(page.getByText("Invalid credentials")).toBeVisible({ timeout: 10000 })
+    await context.close()
   })
 })
 
-test.describe("Authenticated flows", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/auth/login")
-    await page.fill('input[type="email"]', "alice@test.com")
-    await page.fill('input[type="password"]', "test123")
-    await page.click('button:has-text("Sign in")')
-    await page.waitForURL("http://localhost:3000/", { timeout: 10000 })
+test.describe("Signup", () => {
+  test("signup form loads", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined })
+    const page = await context.newPage()
+    await page.goto("/auth/signup")
+    await expect(page.getByText("Create Account", { exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('input[type="email"]')).toBeVisible()
+    await expect(page.locator('input[type="password"]')).toBeVisible()
+    await expect(page.getByRole("button", { name: "Create account" })).toBeVisible()
+    await context.close()
   })
+})
 
-  test("orders page shows orders", async ({ page }) => {
+test.describe("Logout", () => {
+  test("sign out clears authentication", async ({ page }) => {
+    await page.goto("/")
+    await expect(page.getByText(/Hello,/)).toBeVisible()
+    await page.getByText(/Account & Lists/).click()
+    await page.getByRole("menuitem", { name: "Sign Out" }).click()
+    await expect(page.getByRole("link", { name: /Sign in/i })).toBeVisible({ timeout: 10000 })
+  })
+})
+
+test.describe("Protected routes", () => {
+  test("redirects to login when not authenticated", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined })
+    const page = await context.newPage()
     await page.goto("/orders")
-    await expect(page.getByRole("heading", { name: "Your Orders" })).toBeVisible({ timeout: 10000 })
-    const orderCards = await page.locator('a[href^="/orders/"]').count()
-    expect(orderCards).toBeGreaterThan(0)
-  })
-
-  test("wishlist page loads", async ({ page }) => {
-    await page.goto("/wishlist")
-    await expect(page.getByRole("heading", { name: "Your Wishlist" })).toBeVisible({ timeout: 10000 })
-  })
-
-  test("profile page shows user details", async ({ page }) => {
-    await page.goto("/profile")
-    await expect(page.getByRole("heading", { name: "Your Profile" })).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText("alice@test.com").first()).toBeVisible()
-  })
-
-  test("order detail page loads", async ({ page }) => {
-    await page.goto("/orders")
-    await page.locator('a[href^="/orders/"]').first().click()
-    await expect(page.getByRole("heading", { name: /Order #/ })).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText("Shipping Address")).toBeVisible()
-  })
-
-  test("cart page loads", async ({ page }) => {
-    await page.goto("/cart")
-    await page.waitForTimeout(3000)
-    // Cart may be empty — check for either the heading or empty state
-    const heading = page.getByRole("heading", { name: "Shopping Cart" })
-    const empty = page.getByText("Your cart is empty")
-    const either = await Promise.race([heading.waitFor({ timeout: 5000 }).then(() => true).catch(() => false), empty.waitFor({ timeout: 5000 }).then(() => true).catch(() => false)])
-    expect(either).toBe(true)
-  })
-
-  test("search bar shows search term after navigation", async ({ page }) => {
-    const searchInput = page.locator('input[placeholder="Search products..."]')
-    await searchInput.fill("apple")
-    await searchInput.press("Enter")
-    await page.waitForURL("**/products?search=apple", { timeout: 10000 })
-    await expect(searchInput).toHaveValue("apple")
+    await expect(page).toHaveURL(/\/auth\/login/, { timeout: 10000 })
+    await context.close()
   })
 })

@@ -1,17 +1,10 @@
 import { test, expect } from "@playwright/test"
 
 test.describe("Products page", () => {
-  test("loads and shows products when searching", async ({ page }) => {
+  test("search shows product results", async ({ page }) => {
     await page.goto("/products?search=laptop")
-    await page.waitForTimeout(3000)
-    const productCards = await page.locator("a[href^='/products/']").count()
-    expect(productCards).toBeGreaterThan(0)
-  })
-
-  test("search for apple shows relevant products", async ({ page }) => {
-    await page.goto("/products?search=apple")
-    await page.waitForTimeout(3000)
     const productLinks = page.locator("a[href^='/products/']")
+    await expect(productLinks.first()).toBeVisible({ timeout: 10000 })
     const count = await productLinks.count()
     expect(count).toBeGreaterThan(0)
   })
@@ -20,55 +13,38 @@ test.describe("Products page", () => {
     await page.goto("/products?search=zzzzzzzzzzznoresults")
     await expect(page.getByText("No results found")).toBeVisible({ timeout: 10000 })
   })
-})
 
-test.describe("Sorting and Filters", () => {
-  test("sort select is present in sidebar", async ({ page }) => {
+  test("sort select is visible in sidebar", async ({ page }) => {
     await page.goto("/products?search=laptop")
-    await page.waitForTimeout(3000)
-    // The sidebar has the sort select — it contains the text "Sort by"
-    await expect(page.getByText("Sort by")).toBeVisible()
-    const selects = page.locator("aside select")
-    await expect(selects).toBeVisible()
+    await expect(page.getByText("Sort by")).toBeVisible({ timeout: 10000 })
+    await expect(page.locator("aside select").first()).toBeVisible()
   })
 
-  test("min rating filter appears in URL when clicked", async ({ page }) => {
+  test("min rating filter updates URL", async ({ page }) => {
     await page.goto("/products?search=laptop")
-    await page.waitForTimeout(3000)
-    const ratingBtn = page.locator("aside button").filter({ hasText: "up" }).first()
-    const visible = await ratingBtn.isVisible().catch(() => false)
-    if (visible) {
+    const ratingBtn = page.locator("aside button").filter({ hasText: /up|star/i }).first()
+    if (await ratingBtn.isVisible().catch(() => false)) {
       await ratingBtn.click()
-      await page.waitForTimeout(1000)
-      expect(page.url()).toContain("min_rating")
+      await expect(page).toHaveURL(/min_rating=/, { timeout: 5000 })
     }
   })
 })
 
 test.describe("Pagination", () => {
-  test("pagination appears when there are many results", async ({ page }) => {
+  test("pagination nav appears when many results", async ({ page }) => {
     await page.goto("/products")
-    await page.waitForTimeout(3000)
-    // Check for page number buttons (e.g., "1", "2", "3")
-    const pageButtons = page.locator("button, a").filter({ hasText: /^\d+$/ })
-    const count = await pageButtons.count()
-    expect(count).toBeGreaterThanOrEqual(0)
+    const pagination = page.getByRole("navigation", { name: "pagination" })
+    await expect(pagination).toBeVisible({ timeout: 10000 })
   })
 
-  test("clicking next page changes products", async ({ page }) => {
-    await page.goto("/products?search=laptop")
-    await page.waitForTimeout(3000)
-    // The pagination component renders numbered buttons
-    const pageTwo = page.locator("button, a").filter({ hasText: "^2$" }).first()
-    const visible = await pageTwo.isVisible().catch(() => false)
-    if (!visible) {
-      test.skip()
-      return
-    }
-    const firstTitles = await page.locator("h3").allTextContents()
-    await pageTwo.click()
-    await page.waitForTimeout(2000)
-    const secondTitles = await page.locator("h3").allTextContents()
-    expect(firstTitles).not.toEqual(secondTitles)
+  test("clicking page 2 changes displayed products", async ({ page }) => {
+    await page.goto("/products")
+    const page2 = page.getByRole("navigation", { name: "pagination" }).getByRole("button").filter({ hasText: "2" })
+    await expect(page2.first()).toBeVisible({ timeout: 10000 })
+    // Scope h3 to product card links only (avoid sidebar "Sort by" h3)
+    const productTitles = page.locator("a[href^='/products/'] h3")
+    const firstTitle = await productTitles.first().textContent()
+    await page2.first().click()
+    await expect(productTitles.first()).not.toHaveText(firstTitle!, { timeout: 10000 })
   })
 })
