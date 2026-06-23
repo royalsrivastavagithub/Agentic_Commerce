@@ -223,8 +223,8 @@ export default function ProductsContent() {
                     <button
                       key={r}
                       onClick={() => setMinRating(minRating === r ? 0 : r)}
-                      className={`flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-gray-50 ${
-                        minRating === r ? "bg-gray-100 font-medium" : "text-gray-600"
+                      className={`flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-accent ${
+                        minRating === r ? "bg-gray-100 dark:bg-accent font-medium" : "text-gray-600 dark:text-muted-foreground"
                       }`}
                     >
                       <div className="flex">
@@ -251,8 +251,8 @@ export default function ProductsContent() {
                     <button
                       key={d}
                       onClick={() => setMinDiscount(minDiscount === d ? 0 : d)}
-                      className={`flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-gray-50 ${
-                        minDiscount === d ? "bg-gray-100 font-medium" : "text-gray-600"
+                      className={`flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-accent ${
+                        minDiscount === d ? "bg-gray-100 dark:bg-accent font-medium" : "text-gray-600 dark:text-muted-foreground"
                       }`}
                     >
                       <span className="text-xs">{d}% off or more</span>

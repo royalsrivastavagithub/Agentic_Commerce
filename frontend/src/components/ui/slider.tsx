@@ -29,14 +29,14 @@ function Slider({
     >
       <SliderPrimitive.Control className="flex w-full touch-none items-center py-1 select-none">
         <SliderPrimitive.Track className="relative h-1.5 w-full grow rounded-md bg-gray-200 dark:bg-muted select-none">
-          <SliderPrimitive.Indicator className="absolute h-full rounded-md bg-amazon-link select-none" />
+          <SliderPrimitive.Indicator className="absolute h-full rounded-md bg-cyan-600 select-none" />
           <SliderPrimitive.Thumb
             index={0}
-            className="block h-4 w-4 rounded-md border-2 border-white bg-amazon-nav shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 select-none"
+            className="block h-4 w-4 rounded-md bg-cyan-600 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 select-none"
           />
           <SliderPrimitive.Thumb
             index={1}
-            className="block h-4 w-4 rounded-md border-2 border-white bg-amazon-nav shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 select-none"
+            className="block h-4 w-4 rounded-md bg-cyan-600 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 select-none"
           />
         </SliderPrimitive.Track>
       </SliderPrimitive.Control>
