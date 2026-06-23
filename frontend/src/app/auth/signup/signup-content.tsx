@@ -51,7 +51,6 @@ export default function SignupContent() {
     if (!form.password) errs.password = "Password is required"
     else if (form.password.length < 8 || form.password.length > 16) errs.password = "Password must be 8–16 characters"
     else if (!PASSWORD_REGEX.test(form.password)) errs.password = "Must include uppercase, lowercase, digit, and symbol"
-    if (form.date_of_birth?.trim() && !/^\d{2}\/\d{2}\/\d{4}$/.test(form.date_of_birth)) errs.date_of_birth = "Use format DD/MM/YYYY"
     return errs
   }
 
@@ -64,10 +63,6 @@ export default function SignupContent() {
     setLoading(true)
     try {
       const payload = { ...form }
-      if (payload.date_of_birth && /^\d{2}\/\d{2}\/\d{4}$/.test(payload.date_of_birth)) {
-        const [d, m, y] = payload.date_of_birth.split("/")
-        payload.date_of_birth = `${y}-${m}-${d}`
-      }
       if (!payload.phone) payload.phone = ""
       if (!payload.gender) payload.gender = ""
 
@@ -152,33 +147,58 @@ export default function SignupContent() {
               </FieldWrap>
               <div className="grid grid-cols-2 gap-4">
                 <FieldWrap label="Date of Birth" error={showError("date_of_birth") ? errors.date_of_birth : undefined}>
-                  <div className="relative">
-                    <Input
-                      id="dob"
-                      type="text"
-                      placeholder="DD/MM/YYYY"
-                      value={form.date_of_birth}
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text" inputMode="numeric" maxLength={2} placeholder="DD"
+                      value={form.date_of_birth ? (() => { const [y,m,d] = form.date_of_birth.split("-"); return ["",undefined].includes(d)?"":d })() : ""}
                       onChange={(e) => {
-                        setForm((f) => ({ ...f, date_of_birth: e.target.value }))
+                        const d = e.target.value.replace(/\D/g, "").slice(0,2)
+                        const [y,m] = form.date_of_birth ? form.date_of_birth.split("-") : ["",""]
+                        setForm((f) => ({ ...f, date_of_birth: `${y||""}-${m||""}-${d}` }))
+                        setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
+                        if (d.length === 2) (e.target.nextElementSibling as HTMLElement)?.focus()
+                      }}
+                      onBlur={() => markTouched("date_of_birth")}
+                      className="w-12 rounded border border-input bg-background px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card"
+                    />
+                    <span className="text-muted-foreground">/</span>
+                    <input
+                      type="text" inputMode="numeric" maxLength={2} placeholder="MM"
+                      value={form.date_of_birth ? (() => { const [y,m] = form.date_of_birth.split("-"); return ["",undefined].includes(m)?"":m })() : ""}
+                      onChange={(e) => {
+                        const m = e.target.value.replace(/\D/g, "").slice(0,2)
+                        const [y,,d] = form.date_of_birth ? form.date_of_birth.split("-") : ["","",""]
+                        setForm((f) => ({ ...f, date_of_birth: `${y||""}-${m}-${d||""}` }))
+                        setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
+                        if (m.length === 2) setTimeout(() => (e.target.nextElementSibling?.nextElementSibling as HTMLElement)?.focus(), 10)
+                      }}
+                      onBlur={() => markTouched("date_of_birth")}
+                      className="w-12 rounded border border-input bg-background px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card"
+                    />
+                    <span className="text-muted-foreground">/</span>
+                    <input
+                      type="text" inputMode="numeric" maxLength={4} placeholder="YYYY"
+                      value={form.date_of_birth ? (() => { const [y] = form.date_of_birth.split("-"); return ["",undefined].includes(y)?"":y })() : ""}
+                      onChange={(e) => {
+                        const y = e.target.value.replace(/\D/g, "").slice(0,4)
+                        const [,m,d] = form.date_of_birth ? form.date_of_birth.split("-") : ["","",""]
+                        setForm((f) => ({ ...f, date_of_birth: `${y}-${m||""}-${d||""}` }))
                         setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
                       }}
                       onBlur={() => markTouched("date_of_birth")}
+                      className="w-14 rounded border border-input bg-background px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card"
                     />
                     <Popover>
-                      <PopoverTrigger className="absolute right-1 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground rounded-md hover:bg-accent">
+                      <PopoverTrigger className="flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground rounded-md hover:bg-accent shrink-0">
                         <CalendarIcon className="h-4 w-4" />
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="end">
                         <Calendar
                           mode="single"
-                          selected={
-                            form.date_of_birth && /^\d{2}\/\d{2}\/\d{4}$/.test(form.date_of_birth)
-                              ? new Date(form.date_of_birth.split("/").reverse().join("-") + "T00:00:00")
-                              : undefined
-                          }
+                          selected={form.date_of_birth && /^\d{4}-\d{2}-\d{2}$/.test(form.date_of_birth) ? new Date(form.date_of_birth + "T00:00:00") : undefined}
                           onSelect={(date) => {
                             if (date) {
-                              setForm((f) => ({ ...f, date_of_birth: format(date, "dd/MM/yyyy") }))
+                              setForm((f) => ({ ...f, date_of_birth: format(date, "yyyy-MM-dd") }))
                               setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
                               markTouched("date_of_birth")
                             }

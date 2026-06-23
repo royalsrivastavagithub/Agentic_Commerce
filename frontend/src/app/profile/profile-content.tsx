@@ -5,10 +5,13 @@ import type { User } from "@/types/api"
 import { useAuthStore } from "@/stores/auth-store"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { User as UserIcon, Save, Trash2 } from "lucide-react"
+import { User as UserIcon, Save, Trash2, CalendarIcon } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { format } from "date-fns"
 import { toast } from "sonner"
 
 export default function ProfileContent() {
@@ -110,12 +113,56 @@ function ProfileInner() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium">Date of Birth</label>
-                  <input
-                    type="date"
-                    value={form.date_of_birth}
-                    onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
-                    className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card"
-                  />
+                  <div className="relative flex items-center gap-1">
+                    <input
+                      type="text" inputMode="numeric" maxLength={2} placeholder="DD"
+                      value={form.date_of_birth ? (() => { const [y,m,d] = form.date_of_birth.split("-"); return ["",undefined].includes(d)?"":d })() : ""}
+                      onChange={(e) => {
+                        const d = e.target.value.replace(/\D/g, "").slice(0,2)
+                        const [y,m] = form.date_of_birth ? form.date_of_birth.split("-") : ["",""]
+                        setForm({ ...form, date_of_birth: `${y||""}-${m||""}-${d}` })
+                        if (d.length === 2) (e.target.nextElementSibling as HTMLElement)?.focus()
+                      }}
+                      className="w-12 rounded border px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card"
+                    />
+                    <span className="text-muted-foreground">/</span>
+                    <input
+                      type="text" inputMode="numeric" maxLength={2} placeholder="MM"
+                      value={form.date_of_birth ? (() => { const [y,m] = form.date_of_birth.split("-"); return ["",undefined].includes(m)?"":m })() : ""}
+                      onChange={(e) => {
+                        const m = e.target.value.replace(/\D/g, "").slice(0,2)
+                        const [y,,d] = form.date_of_birth ? form.date_of_birth.split("-") : ["","",""]
+                        setForm({ ...form, date_of_birth: `${y||""}-${m}-${d||""}` })
+                        if (m.length === 2) setTimeout(() => (e.target.nextElementSibling?.nextElementSibling as HTMLElement)?.focus(), 10)
+                      }}
+                      className="w-12 rounded border px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card"
+                    />
+                    <span className="text-muted-foreground">/</span>
+                    <input
+                      type="text" inputMode="numeric" maxLength={4} placeholder="YYYY"
+                      value={form.date_of_birth ? (() => { const [y] = form.date_of_birth.split("-"); return ["",undefined].includes(y)?"":y })() : ""}
+                      onChange={(e) => {
+                        const y = e.target.value.replace(/\D/g, "").slice(0,4)
+                        const [,m,d] = form.date_of_birth ? form.date_of_birth.split("-") : ["","",""]
+                        setForm({ ...form, date_of_birth: `${y}-${m||""}-${d||""}` })
+                      }}
+                      className="w-14 rounded border px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card"
+                    />
+                    <Popover>
+                      <PopoverTrigger className="flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground rounded-md hover:bg-accent shrink-0">
+                        <CalendarIcon className="h-4 w-4" />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={form.date_of_birth && /^\d{4}-\d{2}-\d{2}$/.test(form.date_of_birth) ? new Date(form.date_of_birth + "T00:00:00") : undefined}
+                          onSelect={(date) => {
+                            if (date) setForm({ ...form, date_of_birth: format(date, "yyyy-MM-dd") })
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">Gender</label>
