@@ -51,6 +51,9 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class TokenWithUser(Token):
+    user: UserResponse
+
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None

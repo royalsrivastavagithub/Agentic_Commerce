@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Boolean, JSON, ForeignKey, text
 from sqlalchemy.orm import relationship
 from app.db.session import Base
 
@@ -29,7 +29,7 @@ class Product(Base):
     images = Column(JSON, nullable=False)
     thumbnail = Column(String, nullable=False)
 
-    is_featured = Column(Boolean, default=False, server_default="false", index=True)
+    is_featured = Column(Boolean, default=False, server_default=text("0"), index=True)
 
     category_rel = relationship("Category", lazy="joined")
     reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan", lazy="select")

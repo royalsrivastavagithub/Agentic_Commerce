@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { GoogleLogin } from "@react-oauth/google"
 import { useAuthStore } from "@/stores/auth-store"
+import { api } from "@/lib/api-client"
+import type { LoginResponse } from "@/types/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,22 +25,8 @@ export default function LoginContent() {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Login failed" }))
-        const detail = Array.isArray(err.detail) ? err.detail[0]?.msg || "Login failed" : err.detail
-        throw new Error(detail || "Login failed")
-      }
-      const data = await res.json()
-      const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/users/me`, {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      })
-      const user = await userRes.json()
-      login(data.access_token, user)
+      const data = await api.post<LoginResponse>("/auth/login", { email, password })
+      login(data.access_token, data.user)
       toast.success("Logged in successfully")
       router.push("/")
     } catch (err) {
@@ -51,18 +39,8 @@ export default function LoginContent() {
   const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
     if (!credentialResponse.credential) return
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_token: credentialResponse.credential }),
-      })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/users/me`, {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      })
-      const user = await userRes.json()
-      login(data.access_token, user)
+      const data = await api.post<LoginResponse>("/auth/google", { id_token: credentialResponse.credential })
+      login(data.access_token, data.user)
       toast.success("Signed in with Google")
       router.push("/")
     } catch {

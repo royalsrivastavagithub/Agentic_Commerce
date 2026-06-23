@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.limiter import limiter
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse, UserUpdate, PasswordChange, Token, UserLogin
+from app.schemas.user import UserCreate, UserResponse, UserUpdate, PasswordChange, Token, TokenWithUser, UserLogin
 from app.api.deps import get_current_user
 from app.services import user_service
 from app.services.google_auth import verify_google_token
@@ -50,7 +50,7 @@ def verify_email(
     }
 
 
-@router.post("/google", response_model=Token, summary="Login or register with Google Sign-In")
+@router.post("/google", response_model=TokenWithUser, summary="Login or register with Google Sign-In")
 def google_login(body: GoogleLoginRequest, db: Session = Depends(get_db)):
     info = verify_google_token(body.id_token)
     if not info or not info.get("email"):
@@ -73,16 +73,16 @@ def google_login(body: GoogleLoginRequest, db: Session = Depends(get_db)):
         db.refresh(user)
 
     access_token = create_access_token(subject=user.id, role=user.role)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user": user}
 
 
-@router.post("/login", response_model=Token, summary="Login with email and password (JSON)")
+@router.post("/login", response_model=TokenWithUser, summary="Login with email and password (JSON)")
 @limiter.limit("30/minute")
 def login(request: Request, user_in: UserLogin, db: Session = Depends(get_db)):
     return user_service.login_user(db, user_in.email, user_in.password)
 
 
-@router.post("/login/access-token", response_model=Token, summary="Login with email and password (form)")
+@router.post("/login/access-token", response_model=TokenWithUser, summary="Login with email and password (form)")
 @limiter.limit("30/minute")
 def login_access_token(
     request: Request,

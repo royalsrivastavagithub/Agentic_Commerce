@@ -70,7 +70,7 @@ def login_user(db: Session, email: str, password: str) -> dict:
     if not user:
         raise BadRequestError("Invalid credentials")
     access_token = create_access_token(subject=user.id, role=user.role)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user": user}
 
 
 def update_profile(db: Session, user: User, user_in: UserUpdate) -> User:
