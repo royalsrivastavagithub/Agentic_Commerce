@@ -16,12 +16,14 @@ import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import type { Cart, Product, ProductListResponse, Category } from "@/types/api"
 import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user, logout } = useAuthStore()
-  const [searchQuery, setSearchQuery] = useState("")
+  const searchParams = useSearchParams()
+  const searchFromUrl = searchParams.get("search") ?? ""
+  const [searchQuery, setSearchQuery] = useState(searchFromUrl)
   const [searchCategory, setSearchCategory] = useState("all")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
@@ -59,6 +61,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300)
     return () => clearTimeout(timer)
   }, [searchQuery])
+
+  useEffect(() => {
+    setSearchQuery(searchFromUrl)
+  }, [searchFromUrl])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
