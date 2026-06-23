@@ -6,7 +6,7 @@ import type { AdminUserResponse } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useState } from "react"
 import { Search, Shield, Ban, Trash2 } from "lucide-react"
@@ -96,11 +96,9 @@ export default function UsersContent() {
                 <TableCell className="text-right">₹{u.total_spent.toFixed(2)}</TableCell>
                 <TableCell className="flex gap-1">
                   <Dialog open={editUser?.id === u.id} onOpenChange={(open) => { if (!open) setEditUser(null) }}>
-                    <DialogTrigger>
                       <Button variant="ghost" size="icon" onClick={() => { setEditUser(u); setEditRole(u.role); setEditActive(u.is_active) }}>
                         <Shield className="h-4 w-4" />
                       </Button>
-                    </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Edit User — {u.email}</DialogTitle>
@@ -133,11 +131,9 @@ export default function UsersContent() {
                   </Dialog>
 
                   <Dialog open={deleteId === u.id} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
-                    <DialogTrigger>
                       <Button variant="ghost" size="icon" onClick={() => setDeleteId(u.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Delete User</DialogTitle>

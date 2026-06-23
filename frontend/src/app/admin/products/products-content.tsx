@@ -5,7 +5,7 @@ import { api } from "@/lib/api-client"
 import type { Product } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useState } from "react"
 import { Trash2 } from "lucide-react"
@@ -61,11 +61,9 @@ export default function ProductsContent() {
                 <TableCell className="text-right">★{p.rating.toFixed(1)}</TableCell>
                 <TableCell>
                   <Dialog open={deleteId === p.id} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
-                    <DialogTrigger>
                       <Button variant="ghost" size="icon" onClick={() => setDeleteId(p.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Delete Product</DialogTitle>

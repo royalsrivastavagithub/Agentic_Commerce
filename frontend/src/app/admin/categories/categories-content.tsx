@@ -6,7 +6,7 @@ import type { Category } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useState } from "react"
 import { Pencil, Trash2, Plus } from "lucide-react"
@@ -100,11 +100,9 @@ export default function CategoriesContent() {
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell className="flex gap-1 justify-end">
                   <Dialog open={editItem?.id === c.id} onOpenChange={(open) => { if (!open) setEditItem(null) }}>
-                    <DialogTrigger>
                       <Button variant="ghost" size="icon" onClick={() => { setEditItem(c); setEditName(c.name) }}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                    </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Edit Category</DialogTitle>
@@ -121,11 +119,9 @@ export default function CategoriesContent() {
                   </Dialog>
 
                   <Dialog open={deleteId === c.id} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
-                    <DialogTrigger>
                       <Button variant="ghost" size="icon" onClick={() => setDeleteId(c.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Delete Category</DialogTitle>

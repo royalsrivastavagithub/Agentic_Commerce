@@ -6,7 +6,7 @@ import type { Order } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
-import { useState } from "react"
+import { useState, Fragment } from "react"
 
 const statusColors: Record<string, string> = {
   PAID: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -60,8 +60,8 @@ export default function OrdersContent() {
           </TableHeader>
           <TableBody>
             {orders.map((o) => (
-              <>
-                <TableRow key={o.id} className="cursor-pointer" onClick={() => setExpandedId(expandedId === o.id ? null : o.id)}>
+              <Fragment key={o.id}>
+                <TableRow className="cursor-pointer" onClick={() => setExpandedId(expandedId === o.id ? null : o.id)}>
                   <TableCell className="font-medium">#{o.id}</TableCell>
                   <TableCell className="text-muted-foreground">{o.shipping_name}</TableCell>
                   <TableCell>
@@ -96,7 +96,7 @@ export default function OrdersContent() {
                     </TableCell>
                   </TableRow>
                 )}
-              </>
+              </Fragment>
             ))}
           </TableBody>
         </Table>
