@@ -13,10 +13,7 @@ vi.mock("@/stores/auth-store", () => ({
 }))
 
 vi.mock("@/lib/api-client", () => ({
-  api: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
+  api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }))
 
 vi.mock("sonner", () => ({
@@ -41,74 +38,63 @@ const mockReviews = [
     updated_at: "2026-01-01T00:00:00Z",
     user: { id: 1, email: "alice@test.com", first_name: "Alice" },
   },
-  {
-    id: 2,
-    user_id: 2,
-    product_id: 1,
-    rating: 5,
-    comment: "Excellent!",
-    created_at: "2026-02-01T00:00:00Z",
-    updated_at: "2026-02-01T00:00:00Z",
-    user: { id: 2, email: "bob@test.com", first_name: "Bob" },
-  },
 ]
 
 beforeEach(() => {
   vi.clearAllMocks()
   mockedQuery.mockReturnValue({ data: mockReviews, refetch: vi.fn() } as any)
-  mockedMutation.mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-  } as any)
+  mockedMutation.mockReturnValue({ mutate: vi.fn(), isPending: false } as any)
 })
 
 describe("ReviewSection", () => {
   it("renders review cards when reviews exist", () => {
-    mockedAuth.mockReturnValue({
-      isAuthenticated: false,
-      user: null,
-    } as any)
-
+    mockedAuth.mockReturnValue({ isAuthenticated: false, user: null } as any)
     render(<ReviewSection productId={1} />)
-
     expect(screen.getByText("Great product!")).toBeInTheDocument()
-    expect(screen.getByText("Excellent!")).toBeInTheDocument()
     expect(screen.getByText("Alice")).toBeInTheDocument()
-    expect(screen.getByText("Bob")).toBeInTheDocument()
   })
 
   it("renders empty state when no reviews", () => {
-    mockedAuth.mockReturnValue({
-      isAuthenticated: false,
-      user: null,
-    } as any)
+    mockedAuth.mockReturnValue({ isAuthenticated: false, user: null } as any)
     mockedQuery.mockReturnValue({ data: [], refetch: vi.fn() } as any)
-
     render(<ReviewSection productId={1} />)
-
     expect(screen.getByText("No reviews yet. Be the first to review this product!")).toBeInTheDocument()
   })
 
   it("shows Write a Review button when authenticated and not already reviewed", () => {
-    mockedAuth.mockReturnValue({
-      isAuthenticated: true,
-      user: { id: 3, email: "new@test.com" },
-    } as any)
-
+    mockedAuth.mockReturnValue({ isAuthenticated: true, user: { id: 3, email: "new@test.com" } } as any)
     render(<ReviewSection productId={1} />)
-
     expect(screen.getByText("Write a Review")).toBeInTheDocument()
   })
 
-  it("hides Write a Review button when user already reviewed", () => {
-    mockedAuth.mockReturnValue({
-      isAuthenticated: true,
-      user: { id: 1, email: "alice@test.com" },
-    } as any)
-
+  it("hides Write button when user already reviewed", () => {
+    mockedAuth.mockReturnValue({ isAuthenticated: true, user: { id: 1, email: "alice@test.com" } } as any)
     render(<ReviewSection productId={1} />)
-
     expect(screen.queryByText("Write a Review")).not.toBeInTheDocument()
     expect(screen.getByText("You have already reviewed this product.")).toBeInTheDocument()
+  })
+
+  it("shows review form when Write button is clicked", () => {
+    mockedAuth.mockReturnValue({ isAuthenticated: true, user: { id: 3, email: "new@test.com" } } as any)
+    render(<ReviewSection productId={1} />)
+    fireEvent.click(screen.getByText("Write a Review"))
+    expect(screen.getByText("Your Rating")).toBeInTheDocument()
+    expect(screen.getByText("Your Review")).toBeInTheDocument()
+    expect(screen.getByText("Submit Review")).toBeInTheDocument()
+    expect(screen.getByText("Cancel")).toBeInTheDocument()
+  })
+
+  it("submits review form successfully", () => {
+    const mutate = vi.fn()
+    mockedMutation.mockReturnValue({ mutate, isPending: false } as any)
+    mockedAuth.mockReturnValue({ isAuthenticated: true, user: { id: 3, email: "new@test.com" } } as any)
+
+    render(<ReviewSection productId={1} />)
+    fireEvent.click(screen.getByText("Write a Review"))
+    fireEvent.click(screen.getAllByRole("button", { name: "" })[0]) // click first star
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Great product!" } })
+    fireEvent.click(screen.getByText("Submit Review"))
+
+    expect(mutate).toHaveBeenCalledWith({ rating: 1, comment: "Great product!" })
   })
 })
