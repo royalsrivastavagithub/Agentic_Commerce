@@ -137,9 +137,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 />
                 <button
                   type="submit"
-                  className="flex items-center justify-center rounded-r-md bg-amazon-accent px-3 hover:brightness-95 h-full"
+                  className="flex items-center justify-center rounded-r-md bg-cyan-600 px-3 hover:brightness-95 h-full"
                 >
-                  <Search className="h-5 w-5 text-amazon-nav" />
+                  <Search className="h-5 w-5 text-white" />
                 </button>
 
                 {/* Search suggestions dropdown */}

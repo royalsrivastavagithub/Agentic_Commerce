@@ -158,7 +158,7 @@ export default function ProductDetailContent() {
 
           {/* Right: Product info */}
           <div>
-            <h1 className="text-xl font-medium leading-snug text-foreground lg:text-2xl">{product.title}</h1>
+            <h1 className="text-xl font-bold leading-snug text-foreground lg:text-2xl">{product.title}</h1>
 
             {/* Rating */}
             <div className="mt-2 flex items-center gap-2">

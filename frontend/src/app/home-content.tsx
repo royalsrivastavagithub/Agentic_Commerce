@@ -97,7 +97,7 @@ function FeaturedCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="flex gap-4 rounded-lg border bg-white p-3 transition-shadow hover:shadow dark:border-border dark:bg-card"
+      className="flex gap-4 rounded-lg border bg-white p-3 transition-shadow hover:shadow-md dark:border-border dark:bg-card"
     >
       <div className="h-32 w-32 shrink-0 overflow-hidden rounded-md bg-white sm:h-36 sm:w-36 dark:bg-card">
         <img
@@ -108,13 +108,13 @@ function FeaturedCard({ product }: { product: Product }) {
       </div>
       <div className="flex flex-1 flex-col justify-between py-1">
         <div>
-          <h3 className="line-clamp-1 text-base font-medium text-foreground group-hover:text-amazon-link sm:text-lg">
+          <h3 className="line-clamp-1 text-base font-bold text-foreground group-hover:text-amazon-link sm:text-lg">
             {product.title}
           </h3>
           <p className="mt-1 line-clamp-1 text-sm text-muted-foreground sm:line-clamp-2">
             {product.description}
           </p>
-          <div className="mt-1 flex items-center gap-1">
+          <div className="mt-2 flex items-center gap-1">
             <div className="flex">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star
@@ -127,7 +127,7 @@ function FeaturedCard({ product }: { product: Product }) {
             </div>
             <span className="text-xs text-muted-foreground">({product.review_count})</span>
           </div>
-          <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <span>{product.brand}</span>
             {product.brand && <span>•</span>}
             <span className={product.stock > 0 ? "text-green-600" : "text-destructive"}>
@@ -159,12 +159,12 @@ function MiniCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="w-40 shrink-0 snap-start rounded-lg border bg-white p-2 transition-shadow hover:shadow dark:border-border dark:bg-card"
+      className="w-40 shrink-0 snap-start rounded-lg border bg-white p-2 transition-shadow hover:shadow-md dark:border-border dark:bg-card"
     >
       <div className="mb-2 h-28 overflow-hidden rounded-md bg-white">
         <img src={product.thumbnail || "/placeholder.svg"} alt={product.title} className="h-full w-full object-contain" />
       </div>
-      <p className="line-clamp-1 text-xs font-medium text-foreground">{product.title}</p>
+      <p className="line-clamp-1 text-xs font-bold text-foreground">{product.title}</p>
       {(product.discountPercentage ?? product.discount_percentage ?? 0) > 0 ? (
         <div className="mt-1">
           <span className="text-sm font-bold">₹{discounted.toFixed(2)}</span>

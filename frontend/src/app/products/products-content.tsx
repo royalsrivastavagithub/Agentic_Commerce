@@ -347,7 +347,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="flex gap-4 rounded-lg border bg-white p-3 transition-shadow hover:shadow dark:border-border dark:bg-card"
+      className="flex gap-4 rounded-lg border bg-white p-3 transition-shadow hover:shadow-md dark:border-border dark:bg-card"
     >
       <div className="h-28 w-28 shrink-0 overflow-hidden rounded-md bg-white sm:h-32 sm:w-32">
         <img
@@ -359,15 +359,15 @@ function ProductCard({ product }: { product: Product }) {
 
       <div className="flex flex-1 flex-col justify-between py-1">
         <div>
-          <h3 className="line-clamp-1 text-sm font-medium text-foreground group-hover:text-amazon-link sm:text-base">
+          <h3 className="line-clamp-1 text-sm font-bold text-foreground group-hover:text-amazon-link sm:text-base">
             {product.title}
           </h3>
 
-          <p className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:line-clamp-2">
+          <p className="mt-2 line-clamp-1 text-xs text-muted-foreground sm:line-clamp-2">
             {product.description}
           </p>
 
-          <div className="mt-1 flex items-center gap-1">
+          <div className="mt-2 flex items-center gap-1">
             <div className="flex">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star

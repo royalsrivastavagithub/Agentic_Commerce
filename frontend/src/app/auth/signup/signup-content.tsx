@@ -84,7 +84,7 @@ export default function SignupContent() {
         <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4">
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Account Created</CardTitle>
+              <CardTitle className="text-2xl font-bold">Account Created</CardTitle>
               <CardDescription>You can now sign in with your credentials</CardDescription>
             </CardHeader>
             <CardFooter>
@@ -103,7 +103,7 @@ export default function SignupContent() {
       <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Create Account</CardTitle>
+            <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
             <CardDescription>Sign up for a new account</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit} noValidate>

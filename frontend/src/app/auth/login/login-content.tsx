@@ -52,7 +52,7 @@ export default function LoginContent() {
       <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Login</CardTitle>
+            <CardTitle className="text-2xl font-bold">Login</CardTitle>
             <CardDescription>Sign in to your account</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
