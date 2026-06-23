@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AddressBase(BaseModel):
@@ -12,6 +12,13 @@ class AddressBase(BaseModel):
     country: str = "India"
     is_default: bool = False
     address_type: str = "both"  # shipping, billing, both
+
+    @field_validator("pincode")
+    @classmethod
+    def validate_pincode(cls, v: str) -> str:
+        if not v.isdigit() or len(v) != 6:
+            raise ValueError("Pincode must be exactly 6 digits")
+        return v
 
 
 class AddressCreate(AddressBase):

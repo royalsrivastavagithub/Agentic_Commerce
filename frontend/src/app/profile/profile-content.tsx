@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { User as UserIcon, Save, Trash2 } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { toast } from "sonner"
 
 export default function ProfileContent() {
@@ -200,9 +200,7 @@ function ProfileInner() {
                               <DialogDescription>Are you sure you want to delete this address?</DialogDescription>
                             </DialogHeader>
                             <div className="flex justify-end gap-3">
-                              <DialogClose>
-                                <Button variant="outline">Cancel</Button>
-                              </DialogClose>
+                              <button type="button" className={buttonVariants({ variant: "outline" })} onClick={() => {}}>Cancel</button>
                               <Button
                                 variant="destructive"
                                 onClick={() => { deleteAddress.mutate(addr.id); setDeletingId(addr.id) }}

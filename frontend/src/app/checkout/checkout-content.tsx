@@ -188,12 +188,12 @@ function CheckoutInner() {
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
-                <input placeholder="Pincode" inputMode="numeric" pattern="[0-9]{6}" value={newAddr.pincode} onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value.replace(/\D/g, '') })} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+                <input placeholder="Pincode" inputMode="numeric" maxLength={6} value={newAddr.pincode} onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value.replace(/\D/g, '') })} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
               </div>
               <button
                 type="button"
                 onClick={() => addAddress.mutate()}
-                disabled={addAddress.isPending || !newAddr.street || !newAddr.city || !newAddr.state || !newAddr.pincode}
+                disabled={addAddress.isPending || !newAddr.street || !newAddr.city || !newAddr.state || newAddr.pincode.length !== 6}
                 className="rounded bg-amazon-link px-4 py-2 text-sm font-medium text-white hover:brightness-95 disabled:opacity-50"
               >
                 Save Address
