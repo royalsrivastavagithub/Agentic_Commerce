@@ -2,10 +2,10 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
-import type { Product, Review } from "@/types/api"
+import type { Product, Review, WishlistItem } from "@/types/api"
 import { useParams, useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
-import { Star, ChevronRight } from "lucide-react"
+import { Star, ChevronRight, Heart } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
 import { toast } from "sonner"
 import { useState } from "react"
@@ -44,11 +44,28 @@ export default function ProductDetailContent() {
     onError: (err: Error) => toast.error(err.message),
   })
 
+  const { data: wishlist } = useQuery({
+    queryKey: ["wishlist"],
+    queryFn: () => api.get<WishlistItem[]>("/wishlist"),
+    enabled: isAuthenticated,
+  })
+
+  const wishlistItem = wishlist?.find((item: WishlistItem) => item.product_id === Number(id))
+
   const addToWishlist = useMutation({
     mutationFn: () => api.post("/wishlist", { product_id: Number(id) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["wishlist"] })
       toast.success("Added to wishlist")
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const removeFromWishlist = useMutation({
+    mutationFn: () => api.delete(`/wishlist/${wishlistItem?.id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wishlist"] })
+      toast.success("Removed from wishlist")
     },
     onError: (err: Error) => toast.error(err.message),
   })
@@ -232,6 +249,15 @@ export default function ProductDetailContent() {
                       className="w-full rounded-full bg-[#FFA41C] px-6 py-2 text-sm font-semibold text-black shadow-sm hover:brightness-95 disabled:opacity-50"
                     >
                       Buy Now
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => wishlistItem ? removeFromWishlist.mutate() : addToWishlist.mutate()}
+                      disabled={addToWishlist.isPending || removeFromWishlist.isPending}
+                      className="flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 px-6 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted disabled:opacity-50 dark:border-border"
+                    >
+                      <Heart className={`h-4 w-4 ${wishlistItem ? "fill-red-500 text-red-500" : ""}`} />
+                      {removeFromWishlist.isPending ? "Removing..." : addToWishlist.isPending ? "Adding..." : wishlistItem ? "Remove from Wishlist" : "Add to Wishlist"}
                     </button>
                   </div>
                 ) : (

@@ -51,6 +51,7 @@ export default function SignupContent() {
     if (!form.password) errs.password = "Password is required"
     else if (form.password.length < 8 || form.password.length > 16) errs.password = "Password must be 8–16 characters"
     else if (!PASSWORD_REGEX.test(form.password)) errs.password = "Must include uppercase, lowercase, digit, and symbol"
+    if (form.date_of_birth?.trim() && !/^\d{2}\/\d{2}\/\d{4}$/.test(form.date_of_birth)) errs.date_of_birth = "Use format DD/MM/YYYY"
     return errs
   }
 
@@ -63,6 +64,10 @@ export default function SignupContent() {
     setLoading(true)
     try {
       const payload = { ...form }
+      if (payload.date_of_birth && /^\d{2}\/\d{2}\/\d{4}$/.test(payload.date_of_birth)) {
+        const [d, m, y] = payload.date_of_birth.split("/")
+        payload.date_of_birth = `${y}-${m}-${d}`
+      }
       if (!payload.phone) payload.phone = ""
       if (!payload.gender) payload.gender = ""
 
@@ -147,30 +152,41 @@ export default function SignupContent() {
               </FieldWrap>
               <div className="grid grid-cols-2 gap-4">
                 <FieldWrap label="Date of Birth" error={showError("date_of_birth") ? errors.date_of_birth : undefined}>
-                  <Popover>
-                    <PopoverTrigger className="w-full">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.date_of_birth ? format(new Date(form.date_of_birth + "T00:00:00"), "dd/MM/yyyy") : "DD/MM/YYYY"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={form.date_of_birth ? new Date(form.date_of_birth + "T00:00:00") : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            setForm((f) => ({ ...f, date_of_birth: format(date, "yyyy-MM-dd") }))
-                            setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
-                            markTouched("date_of_birth")
+                  <div className="relative">
+                    <Input
+                      id="dob"
+                      type="text"
+                      placeholder="DD/MM/YYYY"
+                      value={form.date_of_birth}
+                      onChange={(e) => {
+                        setForm((f) => ({ ...f, date_of_birth: e.target.value }))
+                        setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
+                      }}
+                      onBlur={() => markTouched("date_of_birth")}
+                    />
+                    <Popover>
+                      <PopoverTrigger className="absolute right-1 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground rounded-md hover:bg-accent">
+                        <CalendarIcon className="h-4 w-4" />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={
+                            form.date_of_birth && /^\d{2}\/\d{2}\/\d{4}$/.test(form.date_of_birth)
+                              ? new Date(form.date_of_birth.split("/").reverse().join("-") + "T00:00:00")
+                              : undefined
                           }
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                          onSelect={(date) => {
+                            if (date) {
+                              setForm((f) => ({ ...f, date_of_birth: format(date, "dd/MM/yyyy") }))
+                              setErrors((prev) => ({ ...prev, date_of_birth: undefined }))
+                              markTouched("date_of_birth")
+                            }
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </FieldWrap>
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender</Label>
