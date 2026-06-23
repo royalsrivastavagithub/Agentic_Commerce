@@ -66,8 +66,8 @@ export default function HomeContent() {
               <h2 className="text-xl font-bold text-foreground">Today&apos;s Deals</h2>
               <Link href="/products?min_discount=10" className="text-sm font-medium text-amazon-link hover:underline">View All</Link>
             </div>
-            <div className="flex gap-4 overflow-x-auto pb-2 snap-x">
-              {dealProducts.map((product) => (
+            <div className="flex flex-wrap gap-4">
+              {dealProducts.slice(0, 7).map((product) => (
                 <MiniCard key={product.id} product={product} />
               ))}
             </div>
@@ -80,8 +80,8 @@ export default function HomeContent() {
             <h2 className="text-xl font-bold text-foreground">Featured Products</h2>
             <Link href="/products?is_featured=true" className="text-sm font-medium text-amazon-link hover:underline">View All</Link>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2 snap-x">
-            {products.map((product) => (
+          <div className="flex flex-wrap gap-4">
+            {products.slice(0, 7).map((product) => (
               <MiniCard key={product.id} product={product} />
             ))}
           </div>
