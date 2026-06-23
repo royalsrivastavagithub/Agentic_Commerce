@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
-import { ReviewSection } from "./product-detail-content"
+import { ReviewSection } from "@/app/products/[id]/product-detail-content"
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: vi.fn(),

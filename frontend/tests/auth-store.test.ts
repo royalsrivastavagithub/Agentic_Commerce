@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { useAuthStore } from "./auth-store"
+import { useAuthStore } from "@/stores/auth-store"
 
 const mockUser = { id: 1, email: "test@test.com", role: "user", is_active: true, is_verified: false }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { api, ApiError } from "./api-client"
+import { api, ApiError } from "@/lib/api-client"
 
 const origLocation = window.location
 

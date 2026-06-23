@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { buildSortParams, buildFilterParams } from "./filter-utils"
+import { buildSortParams, buildFilterParams } from "@/lib/filter-utils"
 
 describe("buildSortParams", () => {
   it("returns empty string for default sort", () => {
