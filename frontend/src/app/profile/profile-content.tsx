@@ -4,8 +4,8 @@ import { api } from "@/lib/api-client"
 import type { User, Address } from "@/types/api"
 import { useAuthStore } from "@/stores/auth-store"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
-import { User as UserIcon, Save, Plus, Pencil, Trash2, CalendarIcon } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { User as UserIcon, Pencil, Check, X, Plus, Trash2, CalendarIcon } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -32,17 +32,15 @@ function ProfileInner() {
   const { user, login } = useAuthStore()
   const queryClient = useQueryClient()
   const [deletingId, setDeletingId] = useState<number | null>(null)
-  const [editingAddr, setEditingAddr] = useState<Address | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [form, setForm] = useState({
-    first_name: user?.first_name || "",
-    last_name: user?.last_name || "",
-    phone: user?.phone || "",
-    date_of_birth: user?.date_of_birth || "",
-    gender: user?.gender || "",
-  })
 
-  const [newAddr, setNewAddr] = useState({
+  // Per-field editing state
+  const [editField, setEditField] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
+
+  // Address form
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingAddr, setEditingAddr] = useState<Address | null>(null)
+  const [addrForm, setAddrForm] = useState({
     label: "Home", street: "", city: "", state: "", pincode: "", country: "India",
   })
 
@@ -52,22 +50,23 @@ function ProfileInner() {
   })
 
   const updateProfile = useMutation({
-    mutationFn: () => api.put<User>("/auth/users/me", form),
+    mutationFn: (data: Record<string, unknown>) => api.put<User>("/auth/users/me", data),
     onSuccess: (data) => {
       login(useAuthStore.getState().token!, data)
       queryClient.invalidateQueries({ queryKey: ["profile"] })
+      setEditField(null)
       toast.success("Profile updated")
     },
     onError: (err: Error) => toast.error(err.message),
   })
 
   const createAddress = useMutation({
-    mutationFn: () => api.post("/users/me/addresses", newAddr),
+    mutationFn: () => api.post("/users/me/addresses", addrForm),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] })
       toast.success("Address added")
       setShowAddForm(false)
-      setNewAddr({ label: "Home", street: "", city: "", state: "", pincode: "", country: "India" })
+      setAddrForm({ label: "Home", street: "", city: "", state: "", pincode: "", country: "India" })
     },
     onError: (err: Error) => toast.error(err.message),
   })
@@ -95,11 +94,26 @@ function ProfileInner() {
   const p = profile || user
   const addresses = (p as User & { addresses?: Address[] })?.addresses || []
 
+  const startEdit = (field: string, currentValue: string) => {
+    setEditField(field)
+    setEditValue(currentValue)
+  }
+
+  const cancelEdit = () => {
+    setEditField(null)
+    setEditValue("")
+  }
+
+  const saveField = () => {
+    if (!editField) return
+    updateProfile.mutate({ [editField]: editValue })
+  }
+
   const resetAddrForm = (addr?: Address) => {
     if (addr) {
-      setNewAddr({ label: addr.label, street: addr.street, city: addr.city, state: addr.state, pincode: addr.pincode, country: addr.country || "India" })
+      setAddrForm({ label: addr.label, street: addr.street, city: addr.city, state: addr.state, pincode: addr.pincode, country: addr.country || "India" })
     } else {
-      setNewAddr({ label: "Home", street: "", city: "", state: "", pincode: "", country: "India" })
+      setAddrForm({ label: "Home", street: "", city: "", state: "", pincode: "", country: "India" })
     }
   }
 
@@ -116,96 +130,69 @@ function ProfileInner() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-white p-6 dark:border-border dark:bg-card">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">First Name</label>
-                <input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Last Name</label>
-                <input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium">Email</label>
-              <p className="py-2 text-sm text-muted-foreground">{p?.email}</p>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium">Phone</label>
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">Date of Birth</label>
-                <div className="flex items-center gap-1">
-                  {["DD", "MM", "YYYY"].map((placeholder, i) => {
-                    const labels = ["day", "month", "year"]
-                    const maxLen = [2, 2, 4]
-                    return (
-                      <input key={i} type="text" inputMode="numeric" maxLength={maxLen[i]} placeholder={placeholder}
-                        value={form.date_of_birth ? (() => { const parts = form.date_of_birth.split("-"); return ["", undefined].includes(parts[i]) ? "" : parts[i] })() : ""}
+        <div className="space-y-2">
+          <EditableRow label="First Name" field="first_name" value={p?.first_name || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending} />
+          <EditableRow label="Last Name" field="last_name" value={p?.last_name || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending} />
+          <EditableRow label="Phone" field="phone" value={p?.phone || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending} />
+          <EditableRow label="Date of Birth" field="date_of_birth" value={p?.date_of_birth || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending}
+            renderEdit={(val, onChange) => (
+              <div className="flex items-center gap-1">
+                {["DD", "MM", "YYYY"].map((ph, i) => {
+                  const maxLen = [2, 2, 4]
+                  const parts = val ? val.split("-") : ["", "", ""]
+                  return (
+                    <span key={i} className="flex items-center gap-1">
+                      <input type="text" inputMode="numeric" maxLength={maxLen[i]} placeholder={ph}
+                        value={["", undefined].includes(parts[i]) ? "" : parts[i]}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(0, maxLen[i])
-                          const parts = form.date_of_birth ? form.date_of_birth.split("-") : ["", "", ""]
-                          parts[i] = val
-                          setForm({ ...form, date_of_birth: parts.join("-") })
-                          if (val.length === maxLen[i] && i < 2) {
-                            const next = (e.target.parentElement?.children[i * 2 + 1] as HTMLElement) || (e.target.nextElementSibling?.nextElementSibling as HTMLElement)
+                          const v = e.target.value.replace(/\D/g, "").slice(0, maxLen[i])
+                          const newParts = [...parts]
+                          newParts[i] = v
+                          onChange(newParts.join("-"))
+                          if (v.length === maxLen[i] && i < 2) {
+                            const next = (e.target.parentElement?.parentElement?.children[i * 2 + 1]?.querySelector("input")) as HTMLElement
                             setTimeout(() => next?.focus(), 10)
                           }
                         }}
-                        className={`w-${i < 2 ? "12" : "14"} rounded border px-2 py-2 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card`}
+                        className={`w-${i < 2 ? "10" : "14"} rounded border px-1 py-1 text-sm text-center outline-none focus:border-amazon-link dark:border-border dark:bg-card`}
                       />
-                    )
-                  })}
-                  <Popover>
-                    <PopoverTrigger className="flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground rounded-md hover:bg-accent shrink-0">
-                      <CalendarIcon className="h-4 w-4" />
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar mode="single"
-                        selected={form.date_of_birth && /^\d{4}-\d{2}-\d{2}$/.test(form.date_of_birth) ? new Date(form.date_of_birth + "T00:00:00") : undefined}
-                        onSelect={(date) => { if (date) setForm({ ...form, date_of_birth: format(date, "yyyy-MM-dd") }) }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                      {i < 2 && <span className="text-muted-foreground">/</span>}
+                    </span>
+                  )
+                })}
+                <Popover>
+                  <PopoverTrigger className="flex h-7 w-7 items-center justify-center text-muted-foreground hover:text-foreground rounded-md hover:bg-accent">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single"
+                      selected={val && /^\d{4}-\d{2}-\d{2}$/.test(val) ? new Date(val + "T00:00:00") : undefined}
+                      onSelect={(date) => { if (date) onChange(format(date, "yyyy-MM-dd")) }}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Gender</label>
-                <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
-                  <option value="">Select</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="unspecified">Prefer not to say</option>
-                </select>
-              </div>
-            </div>
+            )}
+          />
+          <EditableRow label="Gender" field="gender" value={p?.gender || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending}
+            renderEdit={(val, onChange) => (
+              <select value={val} onChange={(e) => onChange(e.target.value)}
+                className="flex-1 rounded border px-2 py-1 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="unspecified">Prefer not to say</option>
+              </select>
+            )}
+          />
 
-            <div>
-              <p className="text-xs text-muted-foreground">Email Verified</p>
-              <p className="text-sm font-medium">{p?.is_verified ? "Yes" : "No"}</p>
-            </div>
-
-            <div className="flex gap-3">
-              <button type="button" onClick={() => updateProfile.mutate()} disabled={updateProfile.isPending}
-                className="flex items-center gap-1 rounded bg-amazon-link px-4 py-2 text-sm font-medium text-white hover:brightness-95 disabled:opacity-50">
-                <Save className="h-4 w-4" /> {updateProfile.isPending ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Addresses */}
-        <div className="mt-6 rounded-lg border bg-white p-6 dark:border-border dark:bg-card">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="mt-8">
+          <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-bold">Addresses</h2>
-            {!showAddForm && (
+            {!showAddForm && !editingAddr && (
               <button onClick={() => { setShowAddForm(true); resetAddrForm() }}
                 className="flex items-center gap-1 rounded bg-amazon-link px-3 py-1.5 text-sm font-medium text-white hover:brightness-95">
                 <Plus className="h-4 w-4" /> Add Address
@@ -213,41 +200,38 @@ function ProfileInner() {
             )}
           </div>
 
-          {/* Add/Edit form */}
           {(showAddForm || editingAddr) && (
             <div className="mb-4 space-y-3 rounded-lg border bg-muted/50 p-4">
-              <input placeholder="Label (Home/Work)" value={newAddr.label} onChange={(e) => setNewAddr({ ...newAddr, label: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
-              <input placeholder="Street address" value={newAddr.street} onChange={(e) => setNewAddr({ ...newAddr, street: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+              <input placeholder="Label (Home/Work)" value={addrForm.label} onChange={(e) => setAddrForm({ ...addrForm, label: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+              <input placeholder="Street address" value={addrForm.street} onChange={(e) => setAddrForm({ ...addrForm, street: e.target.value })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
               <div className="grid grid-cols-2 gap-3">
-                <select value={newAddr.city} onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })} disabled={!newAddr.state} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card disabled:opacity-50 disabled:cursor-not-allowed">
-                  <option value="">{newAddr.state ? "Select city" : "Select state first"}</option>
-                  {newAddr.state && INDIA_LOCATIONS[newAddr.state]?.map((c) => (
+                <select value={addrForm.city} onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })} disabled={!addrForm.state} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card disabled:opacity-50 disabled:cursor-not-allowed">
+                  <option value="">{addrForm.state ? "Select city" : "Select state first"}</option>
+                  {addrForm.state && INDIA_LOCATIONS[addrForm.state]?.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
-                <select value={newAddr.state} onChange={(e) => { setNewAddr({ ...newAddr, state: e.target.value, city: '' }) }} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
+                <select value={addrForm.state} onChange={(e) => { setAddrForm({ ...addrForm, state: e.target.value, city: '' }) }} className="rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card">
                   <option value="">State</option>
                   {INDIA_STATES.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
-              <input placeholder="Pincode" inputMode="numeric" maxLength={6} value={newAddr.pincode} onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value.replace(/\D/g, '') })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+              <input placeholder="Pincode" inputMode="numeric" maxLength={6} value={addrForm.pincode} onChange={(e) => setAddrForm({ ...addrForm, pincode: e.target.value.replace(/\D/g, '') })} className="w-full rounded border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
               <div className="flex gap-2">
                 <button type="button"
-                  onClick={() => editingAddr ? updateAddress.mutate({ id: editingAddr.id, data: newAddr }) : createAddress.mutate()}
-                  disabled={createAddress.isPending || updateAddress.isPending || !newAddr.street || !newAddr.city || !newAddr.state || newAddr.pincode.length !== 6}
+                  onClick={() => editingAddr ? updateAddress.mutate({ id: editingAddr.id, data: addrForm }) : createAddress.mutate()}
+                  disabled={createAddress.isPending || updateAddress.isPending || !addrForm.street || !addrForm.city || !addrForm.state || addrForm.pincode.length !== 6}
                   className="rounded bg-amazon-link px-4 py-2 text-sm font-medium text-white hover:brightness-95 disabled:opacity-50">
-                  {createAddress.isPending || updateAddress.isPending ? "Saving..." : "Save Address"}
+                  Save Address
                 </button>
-                <button type="button" onClick={() => { setShowAddForm(false); setEditingAddr(null) }} className="rounded border px-4 py-2 text-sm dark:border-border">
-                  Cancel
-                </button>
+                <button type="button" onClick={() => { setShowAddForm(false); setEditingAddr(null) }} className="rounded border px-4 py-2 text-sm dark:border-border">Cancel</button>
               </div>
             </div>
           )}
 
-          {addresses.length === 0 ? (
+          {addresses.length === 0 && !showAddForm && !editingAddr ? (
             <p className="text-sm text-muted-foreground">No addresses saved.</p>
           ) : (
             <div className="space-y-2">
@@ -257,10 +241,10 @@ function ProfileInner() {
                     <p className="font-medium">{addr.label}</p>
                     <p className="text-muted-foreground">{addr.street}, {addr.city}, {addr.state} {addr.pincode}</p>
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => { setEditingAddr(addr); resetAddrForm(addr); setShowAddForm(false) }} className="p-1 text-muted-foreground hover:text-foreground"><Pencil className="h-4 w-4" /></button>
+                  <div className="flex gap-1 shrink-0 ml-2">
+                    <button onClick={() => { setEditingAddr(addr); resetAddrForm(addr); setShowAddForm(false) }} className="p-1 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
                     <Dialog>
-                      <DialogTrigger className="p-1 text-destructive"><Trash2 className="h-4 w-4" /></DialogTrigger>
+                      <DialogTrigger className="p-1 text-destructive"><Trash2 className="h-3.5 w-3.5" /></DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Delete Address</DialogTitle>
@@ -282,5 +266,54 @@ function ProfileInner() {
         </div>
       </div>
     </Shell>
+  )
+}
+
+type EditableRowProps = {
+  label: string; field: string; value: string
+  editField: string | null; editValue: string
+  setEditValue: (v: string) => void
+  startEdit: (f: string, v: string) => void
+  cancelEdit: () => void
+  saveField: () => void
+  isSaving: boolean
+  renderEdit?: (val: string, onChange: (v: string) => void) => React.ReactNode
+}
+
+function EditableRow({ label, field, value, editField, editValue, setEditValue, startEdit, cancelEdit, saveField, isSaving, renderEdit }: EditableRowProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const isEditing = editField === field
+  const display = value || "-"
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) inputRef.current.focus()
+  }, [isEditing])
+
+  return (
+    <div className="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2.5 text-sm dark:border-border">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        {isEditing ? (
+          <div className="mt-1 flex items-center gap-1">
+            {renderEdit ? (
+              renderEdit(editValue, setEditValue)
+            ) : (
+              <input ref={inputRef} value={editValue} onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveField()}
+                className="flex-1 rounded border px-2 py-1 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card" />
+            )}
+            <button onClick={saveField} disabled={isSaving} className="p-1 text-green-600 hover:text-green-700"><Check className="h-4 w-4" /></button>
+            <button onClick={cancelEdit} className="p-1 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+          </div>
+        ) : (
+          <p className="font-medium truncate">{display}</p>
+        )}
+      </div>
+      {!isEditing && (
+        <button onClick={() => startEdit(field, value || "")} className="p-1 text-muted-foreground hover:text-foreground shrink-0 ml-2">
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
   )
 }
