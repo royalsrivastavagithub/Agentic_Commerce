@@ -157,7 +157,10 @@ class TestAdminUsers:
         resp = client.get("/api/v1/admin/users?page=1&per_page=2", headers=_token(admin))
         assert resp.status_code == 200
         data = resp.json()
-        assert len(data) == 2
+        assert len(data["users"]) == 2
+        assert data["total"] == 6  # 5 + 1 admin
+        assert data["page"] == 1
+        assert data["per_page"] == 2
 
     def test_list_users_search(self, client: TestClient, db: Session):
         admin = _create_admin(db)
@@ -166,8 +169,9 @@ class TestAdminUsers:
 
         resp = client.get("/api/v1/admin/users?search=alice", headers=_token(admin))
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
-        assert resp.json()[0]["email"] == "alice@test.com"
+        data = resp.json()
+        assert data["total"] == 1
+        assert data["users"][0]["email"] == "alice@test.com"
 
     def test_get_user_detail(self, client: TestClient, db: Session):
         admin = _create_admin(db)
@@ -257,8 +261,8 @@ class TestAdminReviews:
         resp = client.get("/api/v1/admin/reviews", headers=_token(admin))
         assert resp.status_code == 200
         data = resp.json()
-        assert len(data) == 1
-        assert data[0]["comment"] == "Great"
+        assert len(data["reviews"]) == 1
+        assert data["reviews"][0]["comment"] == "Great"
 
     def test_list_reviews_filter_by_product(self, client: TestClient, db: Session):
         admin = _create_admin(db)
@@ -271,7 +275,7 @@ class TestAdminReviews:
         db.commit()
 
         resp = client.get(f"/api/v1/admin/reviews?product_id={p1.id}", headers=_token(admin))
-        assert len(resp.json()) == 1
+        assert len(resp.json()["reviews"]) == 1
 
     def test_delete_review_requires_admin(self, client: TestClient, db: Session):
         user = _create_user(db)
@@ -332,7 +336,9 @@ class TestAdminOrders:
 
         resp = client.get("/api/v1/admin/orders", headers=_token(admin))
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        data = resp.json()
+        assert len(data["orders"]) == 1
+        assert data["total"] == 1
 
     def test_non_admin_cannot_list_all_orders(self, client: TestClient, db: Session):
         user = _create_user(db)
@@ -531,8 +537,9 @@ class TestAdminDashboard:
         db.commit()
 
         resp = client.get(f"/api/v1/admin/reviews?user_id={user1.id}", headers=_token(admin))
-        assert len(resp.json()) == 1
-        assert resp.json()[0]["user_id"] == user1.id
+        data = resp.json()
+        assert len(data["reviews"]) == 1
+        assert data["reviews"][0]["user_id"] == user1.id
 
     def test_admin_reviews_pagination(self, client: TestClient, db: Session):
         admin = _create_admin(db)
@@ -545,9 +552,12 @@ class TestAdminDashboard:
         db.commit()
 
         resp = client.get("/api/v1/admin/reviews?page=1&per_page=2", headers=_token(admin))
-        assert len(resp.json()) == 2
+        data = resp.json()
+        assert len(data["reviews"]) == 2
+        assert data["total"] == 5
 
     def test_admin_reviews_invalid_user_id_returns_empty(self, client: TestClient, db: Session):
         admin = _create_admin(db)
         resp = client.get("/api/v1/admin/reviews?user_id=99999", headers=_token(admin))
-        assert resp.json() == []
+        data = resp.json()
+        assert data["reviews"] == []

@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
-import type { Review } from "@/types/api"
+import type { Review, AdminReviewsResponse } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,15 +11,24 @@ import { toast } from "sonner"
 import { useState } from "react"
 import { Search, Trash2, Star } from "lucide-react"
 
+const REVIEW_LIMIT = 20
+
 export default function ReviewsContent() {
   const queryClient = useQueryClient()
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
 
-  const { data: reviews, isLoading } = useQuery({
-    queryKey: ["admin-reviews", search],
-    queryFn: () => api.get<Review[]>(`/admin/reviews?${search ? `product_id=${search}` : ""}`),
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-reviews", search, page],
+    queryFn: () => api.get<AdminReviewsResponse>(
+      `/admin/reviews?page=${page}&per_page=${REVIEW_LIMIT}${search ? `&product_id=${search}` : ""}`,
+    ),
   })
+
+  const reviews = data?.reviews || []
+  const total = data?.total || 0
+  const totalPages = Math.ceil(total / REVIEW_LIMIT)
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/admin/reviews/${id}`),
@@ -37,7 +46,7 @@ export default function ReviewsContent() {
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search by product ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <Input placeholder="Search by product ID..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
       </div>
 
       {isLoading ? (
@@ -97,6 +106,16 @@ export default function ReviewsContent() {
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {data && totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>Page {page} of {totalPages}</span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          </div>
+        </div>
       )}
     </div>
   )

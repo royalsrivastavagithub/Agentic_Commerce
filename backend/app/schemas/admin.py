@@ -4,6 +4,8 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 from app.models.order import OrderStatus
+from app.schemas.order import OrderResponse
+from app.schemas.review import ReviewResponse
 
 
 class AdminUserUpdate(BaseModel):
@@ -31,6 +33,13 @@ class AdminUserResponse(BaseModel):
     gender: Optional[str] = None
     order_count: int = 0
     total_spent: float = 0.0
+
+
+class AdminUsersResponse(BaseModel):
+    users: list[AdminUserResponse]
+    total: int
+    page: int
+    per_page: int
 
 
 class DashboardSummary(BaseModel):
@@ -75,3 +84,17 @@ class RecentUser(BaseModel):
     last_name: Optional[str] = None
     is_active: bool
     created_at: Optional[datetime] = None
+
+
+class AdminOrdersResponse(BaseModel):
+    orders: list[OrderResponse]
+    total: int
+    skip: int
+    limit: int
+
+
+class AdminReviewsResponse(BaseModel):
+    reviews: list[ReviewResponse]
+    total: int
+    page: int
+    per_page: int

@@ -5,13 +5,13 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.order import Order
 from app.models.user import User
-from app.schemas.admin import AdminUserResponse, AdminUserUpdate
+from app.schemas.admin import AdminUserResponse, AdminUsersResponse, AdminUserUpdate
 from app.api.deps import get_current_admin_user
 
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
-@router.get("", response_model=list[AdminUserResponse], summary="List users with search and pagination")
+@router.get("", response_model=AdminUsersResponse, summary="List users with search and pagination")
 def list_users(
     search: str = Query("", max_length=100),
     page: int = Query(1, ge=1),
@@ -55,7 +55,7 @@ def list_users(
             total_spent=float(stats[1]),
         ))
 
-    return results
+    return AdminUsersResponse(users=results, total=total, page=page, per_page=per_page)
 
 
 @router.get("/{user_id}", response_model=AdminUserResponse, summary="Get user details with order stats")

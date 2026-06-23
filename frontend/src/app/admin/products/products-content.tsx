@@ -11,26 +11,26 @@ import { toast } from "sonner"
 import { useState, useMemo } from "react"
 import { Search, Pencil, Trash2 } from "lucide-react"
 
+const LIMIT = 20
+
 export default function ProductsContent() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [editForm, setEditForm] = useState({ price: 0, stock: 0, discount_percentage: 0, is_featured: false })
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-products"],
-    queryFn: () => api.get<{ products: Product[]; total: number }>("/products?limit=1000"),
+    queryKey: ["admin-products", search, page],
+    queryFn: () => search.trim()
+      ? api.get<{ products: Product[]; total: number }>(`/products/search?q=${encodeURIComponent(search)}&skip=${(page - 1) * LIMIT}&limit=${LIMIT}`)
+      : api.get<{ products: Product[]; total: number }>(`/products?skip=${(page - 1) * LIMIT}&limit=${LIMIT}`),
   })
 
-  const filtered = useMemo(() => {
-    if (!data?.products) return []
-    if (!search.trim()) return data.products
-    const q = search.toLowerCase()
-    return data.products.filter(
-      (p) => p.title.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q),
-    )
-  }, [data, search])
+  const products = data?.products || []
+  const total = data?.total || 0
+  const totalPages = Math.ceil(total / LIMIT)
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/admin/products/${id}`),
@@ -64,7 +64,7 @@ export default function ProductsContent() {
 
       {isLoading ? (
         <div className="h-64 animate-pulse rounded-lg bg-muted" />
-      ) : filtered.length === 0 ? (
+      ) : products.length === 0 ? (
         <p className="text-sm text-muted-foreground">No products found.</p>
       ) : (
         <Table>
@@ -81,17 +81,17 @@ export default function ProductsContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((p) => (
+            {products.map((p) => (
               <TableRow key={p.id}>
                 <TableCell className="text-muted-foreground">{p.id}</TableCell>
                 <TableCell className="font-medium">{p.title}</TableCell>
                 <TableCell className="text-right">₹{p.price.toFixed(2)}</TableCell>
-                <TableCell className="text-right">{p.discount_percentage > 0 ? `${p.discount_percentage}%` : "—"}</TableCell>
+                <TableCell className="text-right">{(p.discountPercentage ?? p.discount_percentage ?? 0) > 0 ? `${p.discountPercentage ?? p.discount_percentage ?? 0}%` : "—"}</TableCell>
                 <TableCell className="text-right">{p.stock}</TableCell>
-                <TableCell className="text-center">{p.is_featured ? "✓" : "—"}</TableCell>
+                <TableCell className="text-center">{p.is_featured ? "✓" : "✗"}</TableCell>
                 <TableCell className="text-right">★{p.rating.toFixed(1)}</TableCell>
                 <TableCell className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => { setEditProduct(p); setEditForm({ price: p.price, stock: p.stock, discount_percentage: p.discount_percentage, is_featured: p.is_featured }) }}>
+                  <Button variant="ghost" size="icon" onClick={() => { setEditProduct(p); setEditForm({ price: p.price, stock: p.stock, discount_percentage: p.discountPercentage ?? p.discount_percentage ?? 0, is_featured: p.is_featured }) }}>
                     <Pencil className="h-4 w-4" />
                   </Button>
 
@@ -117,6 +117,16 @@ export default function ProductsContent() {
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {data && totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>Page {page} of {totalPages}</span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          </div>
+        </div>
       )}
 
       {/* Edit dialog */}

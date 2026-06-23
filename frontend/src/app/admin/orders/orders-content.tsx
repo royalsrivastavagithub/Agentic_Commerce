@@ -2,9 +2,10 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
-import type { Order } from "@/types/api"
+import type { Order, AdminOrdersResponse } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Search } from "lucide-react"
 import { toast } from "sonner"
 import { useState, Fragment, useMemo } from "react"
@@ -19,17 +20,26 @@ const statusColors: Record<string, string> = {
 
 const STATUSES = ["PAID", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"]
 
+const ORDER_LIMIT = 20
+
 export default function OrdersContent() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
 
-  const { data: orders, isLoading } = useQuery({
-    queryKey: ["admin-orders"],
-    queryFn: () => api.get<Order[]>("/admin/orders"),
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-orders", search, page],
+    queryFn: () => api.get<AdminOrdersResponse>(
+      `/admin/orders?skip=${(page - 1) * ORDER_LIMIT}&limit=${ORDER_LIMIT}`,
+    ),
   })
 
+  const orders = data?.orders || []
+  const total = data?.total || 0
+  const totalPages = Math.ceil(total / ORDER_LIMIT)
+
   const filtered = useMemo(() => {
-    if (!orders) return []
+    if (!orders.length) return []
     if (!search.trim()) return orders
     const q = search.toLowerCase()
     return orders.filter(
@@ -116,6 +126,16 @@ export default function OrdersContent() {
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {data && totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>Page {page} of {totalPages}</span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          </div>
+        </div>
       )}
     </div>
   )

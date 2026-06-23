@@ -194,6 +194,27 @@ export interface AdminUserResponse {
   total_spent: number
 }
 
+export interface AdminUsersResponse {
+  users: AdminUserResponse[]
+  total: number
+  page: number
+  per_page: number
+}
+
+export interface AdminOrdersResponse {
+  orders: Order[]
+  total: number
+  skip: number
+  limit: number
+}
+
+export interface AdminReviewsResponse {
+  reviews: Review[]
+  total: number
+  page: number
+  per_page: number
+}
+
 export interface CreatePaymentResponse {
   order_id: number
   razorpay_order_id: string

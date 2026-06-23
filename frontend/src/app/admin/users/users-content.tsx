@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
-import type { AdminUserResponse } from "@/types/api"
+import type { AdminUserResponse, AdminUsersResponse } from "@/types/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +22,7 @@ export default function UsersContent() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-users", search, page],
-    queryFn: () => api.get<AdminUserResponse[]>(`/admin/users?search=${encodeURIComponent(search)}&page=${page}&per_page=20`),
+    queryFn: () => api.get<AdminUsersResponse>(`/admin/users?search=${encodeURIComponent(search)}&page=${page}&per_page=20`),
   })
 
   const editMutation = useMutation({
@@ -46,7 +46,8 @@ export default function UsersContent() {
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const users = data || []
+  const users = data?.users || []
+  const totalPages = data ? Math.ceil(data.total / data.per_page) : 1
 
   return (
     <div className="space-y-4">
@@ -154,12 +155,12 @@ export default function UsersContent() {
         </Table>
       )}
 
-      {users.length > 0 && (
+      {data && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {page}</span>
+          <span>Page {page} of {totalPages}</span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)}>Next</Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
           </div>
         </div>
       )}
