@@ -82,6 +82,11 @@ export default function ProductsContent() {
     router.replace(`/products${qs ? `?${qs}` : ""}`, { scroll: false })
   }, [sort, page, minPrice, maxPrice, minRating, searchFromUrl, categoryFromUrl, urlReady])
 
+  useEffect(() => {
+    setMinPrice("")
+    setMaxPrice("")
+  }, [searchFromUrl, category, minDiscount])
+
   const categoryIdMap = useMemo(() => {
     const m = new Map<string, number>()
     categories?.forEach((c) => m.set(c.name, c.id))
@@ -179,18 +184,28 @@ export default function ProductsContent() {
               <div>
                 <h3 className="mb-1.5 text-sm font-bold text-foreground">Price Range</h3>
                 <div className="space-y-2 pt-1">
-                  <Slider
-                    value={[parseInt(minPrice || String(priceMin)), parseInt(maxPrice || String(priceMax))]}
-                    onValueChange={([min, max]) => {
-                      setMinPrice(min.toString())
-                      setMaxPrice(max.toString())
-                    }}
-                    min={priceMin} max={priceMax} step={10}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>₹{minPrice || priceMin}</span>
-                    <span>₹{maxPrice || priceMax}</span>
-                  </div>
+                  {priceMin < priceMax ? (
+                    <>
+                      <Slider
+                        key={`${priceMin}-${priceMax}`}
+                        value={[
+                          Math.max(parseFloat(minPrice || String(priceMin)), priceMin),
+                          Math.min(parseFloat(maxPrice || String(priceMax)), priceMax),
+                        ]}
+                        onValueChange={([min, max]) => {
+                          setMinPrice(min.toString())
+                          setMaxPrice(max.toString())
+                        }}
+                        min={priceMin} max={priceMax} step={10}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>₹{minPrice || parseFloat(String(priceMin)).toFixed(2)}</span>
+                        <span>₹{maxPrice || parseFloat(String(priceMax)).toFixed(2)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No price range available</p>
+                  )}
                 </div>
               </div>
 
