@@ -36,19 +36,27 @@ function NavLink({ href, label, icon: Icon, onClick }: { href: string; label: st
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user, _hydrated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
-    if (!mounted || !_hydrated) return
+    if (!mounted) return
     if (!isAuthenticated) router.push("/auth/login")
     else if (user?.role !== "admin") router.push("/")
-  }, [mounted, _hydrated, isAuthenticated, user, router])
+  }, [mounted, isAuthenticated, user, router])
 
-  if (!mounted || !_hydrated || !isAuthenticated || user?.role !== "admin") return null
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted-foreground/30 border-t-foreground" />
+      </div>
+    )
+  }
+  if (!isAuthenticated) return null
+  if (user?.role !== "admin") return null
 
   return (
     <div className="flex min-h-screen">
