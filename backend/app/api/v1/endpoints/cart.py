@@ -32,7 +32,7 @@ def _get_or_create_cart(user_id: int, db: Session) -> Cart:
 
 def _compute_total(items: list[CartItem]) -> float:
     return round(sum(
-        item.quantity * item.product.price for item in items if item.product
+        item.quantity * item.product_price for item in items if item.product
     ), 2)
 
 
@@ -92,10 +92,12 @@ def add_cart_item(
         db.refresh(existing)
         return existing
 
+    effective_price = round(product.price * (1 - product.discount_percentage / 100), 2)
     cart_item = CartItem(
         cart_id=cart.id,
         product_id=item_in.product_id,
         quantity=item_in.quantity,
+        product_price=effective_price,
     )
     db.add(cart_item)
     db.commit()
@@ -229,7 +231,8 @@ def move_saved_to_cart(
             detail=f"Product is out of stock",
         )
 
-    cart_item = CartItem(cart_id=cart.id, product_id=saved.product_id, quantity=1)
+    eff_price = round(product.price * (1 - product.discount_percentage / 100), 2)
+    cart_item = CartItem(cart_id=cart.id, product_id=saved.product_id, quantity=1, product_price=eff_price)
     db.add(cart_item)
     db.delete(saved)
     db.commit()

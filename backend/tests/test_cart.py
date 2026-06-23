@@ -398,8 +398,8 @@ class TestCartTotal:
     def test_total_is_sum_of_item_quantity_times_price(self, client: TestClient, db: Session):
         token = _create_user_token(db)
         cat_id = _create_category(db)
-        p1 = _create_product(db, cat_id, {"sku": "TOT-001", "price": 10.0})
-        p2 = _create_product(db, cat_id, {"sku": "TOT-002", "price": 15.50, "title": "Second"})
+        p1 = _create_product(db, cat_id, {"sku": "TOT-001", "price": 10.0, "discountPercentage": 0})
+        p2 = _create_product(db, cat_id, {"sku": "TOT-002", "price": 15.50, "title": "Second", "discountPercentage": 0})
 
         client.post(
             "/api/v1/cart/items",

@@ -241,9 +241,9 @@ function CheckoutInner() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{item.product.title}</p>
-                  <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ₹{item.product.price.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ₹{(item.product_price ?? item.product.price).toFixed(2)}</p>
                 </div>
-                <p className="text-sm font-semibold">₹{(item.product.price * item.quantity).toFixed(2)}</p>
+                <p className="text-sm font-semibold">₹{((item.product_price ?? item.product.price) * item.quantity).toFixed(2)}</p>
               </div>
             ))}
           </div>

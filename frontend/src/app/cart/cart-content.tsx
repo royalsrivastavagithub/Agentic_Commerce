@@ -112,7 +112,13 @@ function CartInner() {
                   <Link href={`/products/${item.product.id}`} className="font-medium hover:underline">
                     {item.product.title}
                   </Link>
-                  <p className="text-sm text-muted-foreground">₹{item.product.price.toFixed(2)} each</p>
+                  <div className="text-sm">
+                    {(item.product_price ?? Infinity) < item.product.price ? (
+                      <><span className="font-medium text-foreground">₹{(item.product_price ?? item.product.price).toFixed(2)}</span> <span className="text-muted-foreground line-through">₹{item.product.price.toFixed(2)}</span></>
+                    ) : (
+                      <span className="text-muted-foreground">₹{item.product.price.toFixed(2)} each</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center rounded-md border">
@@ -142,7 +148,7 @@ function CartInner() {
                     </Button>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="font-semibold">₹{(item.product.price * item.quantity).toFixed(2)}</span>
+                    <span className="font-semibold">₹{((item.product_price ?? item.product.price) * item.quantity).toFixed(2)}</span>
                     <Button
                       variant="ghost"
                       size="icon"

@@ -12,6 +12,7 @@ class CartProductInfo(BaseModel):
     price: float
     thumbnail: str
     stock: int
+    discount_percentage: float = 0
 
 
 class CartItemCreate(BaseModel):
@@ -31,6 +32,7 @@ class CartItemResponse(BaseModel):
     product_id: int
     quantity: int
     product: CartProductInfo
+    product_price: float = 0
 
 
 class CartResponse(BaseModel):

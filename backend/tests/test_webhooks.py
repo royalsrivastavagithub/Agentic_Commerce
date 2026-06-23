@@ -96,7 +96,9 @@ def _add_to_cart(db: Session, user_id: int, product_id: int, quantity: int = 2):
         db.add(cart)
         db.commit()
         db.refresh(cart)
-    item = CartItem(cart_id=cart.id, product_id=product_id, quantity=quantity)
+    product = db.query(Product).filter(Product.id == product_id).first()
+    product_price = round(product.price * (1 - product.discount_percentage / 100), 2) if product else 0
+    item = CartItem(cart_id=cart.id, product_id=product_id, quantity=quantity, product_price=product_price)
     db.add(item)
     db.commit()
 

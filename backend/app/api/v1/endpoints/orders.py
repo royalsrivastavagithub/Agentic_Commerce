@@ -70,7 +70,7 @@ def create_payment(
             )
 
     total = sum(
-        round(cart_item.quantity * (db.query(Product).filter(Product.id == cart_item.product_id).first().price), 2)
+        round(cart_item.quantity * cart_item.product_price, 2)
         for cart_item in cart.items
     )
 
@@ -182,12 +182,12 @@ def verify_payment(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Insufficient stock for '{product.title}'",
             )
-        item_subtotal = round(cart_item.quantity * product.price, 2)
+        item_subtotal = round(cart_item.quantity * cart_item.product_price, 2)
         order_item = OrderItem(
             order_id=order.id,
             product_id=product.id,
             product_name=product.title,
-            product_price=product.price,
+            product_price=cart_item.product_price,
             quantity=cart_item.quantity,
             subtotal=item_subtotal,
             thumbnail=product.thumbnail,

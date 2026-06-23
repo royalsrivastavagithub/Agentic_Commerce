@@ -131,7 +131,9 @@ def _add_to_cart(db: Session, user_id: int, product_id: int, quantity: int = 2):
         db.add(cart)
         db.commit()
         db.refresh(cart)
-    item = CartItem(cart_id=cart.id, product_id=product_id, quantity=quantity)
+    product = db.query(Product).filter(Product.id == product_id).first()
+    product_price = round(product.price * (1 - product.discount_percentage / 100), 2) if product else 0
+    item = CartItem(cart_id=cart.id, product_id=product_id, quantity=quantity, product_price=product_price)
     db.add(item)
     db.commit()
 
@@ -143,9 +145,10 @@ class TestCreatePayment:
         user = _create_user(db, name="John")
         headers = _user_token(user)
         cat_id = _create_category(db)
-        product = _create_product(db, cat_id, {"stock": 10})
+        product = _create_product(db, cat_id, {"stock": 10, "discountPercentage": 0})
         address = _create_address(db, user.id)
         _add_to_cart(db, user.id, product.id, quantity=2)
+        eff_price = round(product.price * (1 - product.discount_percentage / 100), 2)
 
         resp = client.post(
             "/api/v1/orders/create-payment",
@@ -155,7 +158,7 @@ class TestCreatePayment:
         assert resp.status_code == 201
         data = resp.json()
         assert data["razorpay_order_id"] == "rzp_test_order_123"
-        assert data["amount"] == round(2 * product.price, 2)
+        assert data["amount"] == round(2 * eff_price, 2)
         assert data["currency"] == "INR"
         assert "order_id" not in data
 
@@ -279,7 +282,7 @@ class TestCreatePayment:
         user = _create_user(db)
         headers = _user_token(user)
         cat_id = _create_category(db)
-        product = _create_product(db, cat_id, {"price": 15.99})
+        product = _create_product(db, cat_id, {"price": 15.99, "discountPercentage": 0})
         address = _create_address(db, user.id)
         _add_to_cart(db, user.id, product.id, quantity=2)
 
@@ -317,8 +320,8 @@ class TestCreatePayment:
         user = _create_user(db)
         headers = _user_token(user)
         cat_id = _create_category(db)
-        p1 = _create_product(db, cat_id, {"sku": "MULTI-1", "price": 10.0, "title": "P1"})
-        p2 = _create_product(db, cat_id, {"sku": "MULTI-2", "price": 20.0, "title": "P2"})
+        p1 = _create_product(db, cat_id, {"sku": "MULTI-1", "price": 10.0, "title": "P1", "discountPercentage": 0})
+        p2 = _create_product(db, cat_id, {"sku": "MULTI-2", "price": 20.0, "title": "P2", "discountPercentage": 0})
         address = _create_address(db, user.id)
         _add_to_cart(db, user.id, p1.id, quantity=3)
         _add_to_cart(db, user.id, p2.id, quantity=2)
