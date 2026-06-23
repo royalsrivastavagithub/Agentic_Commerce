@@ -58,6 +58,7 @@ export default function SignupContent() {
     e.preventDefault()
     const errs = validate()
     setErrors(errs)
+    Object.keys(errs).forEach(markTouched)
     if (Object.keys(errs).length > 0) return
 
     setLoading(true)
@@ -237,9 +238,6 @@ export default function SignupContent() {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating account..." : "Create account"}
               </Button>
-              {Object.keys(errors).length > 0 && (
-                <p className="text-center text-xs text-destructive">Please fix the errors above before submitting.</p>
-              )}
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
                 <Link href="/auth/login" className="font-medium text-primary hover:underline">
