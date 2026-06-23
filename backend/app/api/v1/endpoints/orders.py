@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -78,7 +78,7 @@ def create_payment(
         razorpay_order = create_razorpay_order(
             amount=total,
             currency="INR",
-            receipt=f"pay_{current_user.id}_{datetime.utcnow().timestamp()}",
+            receipt=f"pay_{current_user.id}_{datetime.now(timezone.utc).timestamp()}",
         )
     except Exception as e:
         raise HTTPException(
