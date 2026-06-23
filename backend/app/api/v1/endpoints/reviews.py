@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.models.order import Order, OrderItem, OrderStatus
 from app.models.product import Product
 from app.models.review import Review
 from app.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse
@@ -59,6 +60,22 @@ def create_review(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found",
+        )
+
+    purchased = (
+        db.query(Order)
+        .join(OrderItem)
+        .filter(
+            Order.user_id == current_user.id,
+            OrderItem.product_id == product_id,
+            Order.status == OrderStatus.DELIVERED,
+        )
+        .first()
+    )
+    if not purchased:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only review products you have purchased",
         )
 
     existing = (

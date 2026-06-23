@@ -298,54 +298,158 @@ export default function ProductDetailContent() {
   )
 }
 
-function ReviewSection({ productId }: { productId: number }) {
-  const { data: reviews } = useQuery({
+export function ReviewSection({ productId }: { productId: number }) {
+  const { data: reviews, refetch } = useQuery({
     queryKey: ["reviews", productId],
     queryFn: () => api.get<Review[]>(`/products/${productId}/reviews`),
   })
+  const { isAuthenticated, user } = useAuthStore()
+  const [showForm, setShowForm] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [comment, setComment] = useState("")
 
-  if (!reviews?.length) {
-    return (
-      <div className="rounded-lg border border-dashed p-8 text-center">
-        <p className="text-sm text-muted-foreground">No reviews yet. Be the first to review this product!</p>
-      </div>
-    )
+  const alreadyReviewed = reviews?.some((r) => r.user?.id === user?.id)
+
+  const reviewMutation = useMutation({
+    mutationFn: (data: { rating: number; comment: string }) =>
+      api.post(`/products/${productId}/reviews`, data),
+    onSuccess: () => {
+      toast.success("Review submitted!")
+      setShowForm(false)
+      setRating(0)
+      setComment("")
+      refetch()
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Failed to submit review"
+      if (msg.includes("already reviewed")) {
+        toast.error("You have already reviewed this product")
+      } else if (msg.includes("purchased")) {
+        toast.error("You can only review products you have purchased")
+      } else {
+        toast.error(msg)
+      }
+    },
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (rating === 0) {
+      toast.error("Please select a rating")
+      return
+    }
+    if (!comment.trim()) {
+      toast.error("Please write a comment")
+      return
+    }
+    reviewMutation.mutate({ rating, comment: comment.trim() })
   }
+
+  const reviewForm = (
+    <form onSubmit={handleSubmit} className="rounded-lg border p-4 space-y-3">
+      <div>
+        <p className="mb-1 text-sm font-medium">Your Rating</p>
+        <div className="flex gap-0.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setRating(i + 1)}
+              className="p-0.5 transition-colors hover:scale-110"
+            >
+              <Star
+                className={`h-5 w-5 ${
+                  i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1 text-sm font-medium">Your Review</p>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Share your thoughts about this product..."
+          className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-amazon-link dark:border-border dark:bg-card dark:text-foreground"
+          rows={3}
+        />
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={reviewMutation.isPending}
+          className="rounded-full bg-amazon-accent px-5 py-1.5 text-sm font-semibold text-amazon-nav hover:brightness-95 disabled:opacity-50"
+        >
+          {reviewMutation.isPending ? "Submitting..." : "Submit Review"}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setShowForm(false); setRating(0); setComment("") }}
+          className="rounded-full border px-5 py-1.5 text-sm font-medium hover:bg-muted dark:border-border"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  )
 
   return (
     <div className="space-y-4">
-      {reviews.map((review) => (
-        <div key={review.id} className="rounded-lg border p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                {(review.user?.first_name?.[0] || review.user?.email?.[0] || "A").toUpperCase()}
+      {reviews?.length ? (
+        reviews.map((review) => (
+          <div key={review.id} className="rounded-lg border p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
+                  {(review.user?.first_name?.[0] || review.user?.email?.[0] || "A").toUpperCase()}
+                </div>
+                <span className="text-sm font-medium">
+                  {review.user?.first_name || review.user?.email?.split("@")[0] || "Anonymous"}
+                </span>
               </div>
-              <span className="text-sm font-medium">
-                {review.user?.first_name || review.user?.email?.split("@")[0] || "Anonymous"}
+              <span className="text-xs text-muted-foreground">
+                {new Date(review.created_at).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
               </span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {new Date(review.created_at).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
+            <div className="mb-1 flex">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  className={`h-3.5 w-3.5 ${
+                    i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">{review.comment}</p>
           </div>
-          <div className="mb-1 flex">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                className={`h-3.5 w-3.5 ${
-                  i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                }`}
-              />
-            ))}
-          </div>
-          <p className="text-sm leading-relaxed text-muted-foreground">{review.comment}</p>
+        ))
+      ) : (
+        <div className="rounded-lg border border-dashed p-8 text-center">
+          <p className="text-sm text-muted-foreground">No reviews yet. Be the first to review this product!</p>
         </div>
-      ))}
+      )}
+
+      {isAuthenticated && !alreadyReviewed && !showForm && (
+        <button
+          onClick={() => setShowForm(true)}
+          className="rounded-full bg-amazon-accent px-5 py-1.5 text-sm font-semibold text-amazon-nav hover:brightness-95"
+        >
+          Write a Review
+        </button>
+      )}
+
+      {showForm && reviewForm}
+
+      {alreadyReviewed && (
+        <p className="text-xs text-muted-foreground">You have already reviewed this product.</p>
+      )}
     </div>
   )
 }

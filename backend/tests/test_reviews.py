@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.category import Category
 from app.models.product import Product
+from app.models.order import Order, OrderItem, OrderStatus
 from app.core.security import create_access_token
 
 
@@ -56,6 +57,35 @@ def _setup(db: Session, email: str = "review@test.com"):
     db.add(product)
     db.commit()
     db.refresh(product)
+
+    order = Order(
+        user_id=user.id,
+        total=product.price,
+        subtotal=product.price,
+        status=OrderStatus.DELIVERED,
+        shipping_name="Test",
+        shipping_phone="0000000000",
+        shipping_address_line_1="123 Test St",
+        shipping_city="Test City",
+        shipping_state="TS",
+        shipping_country="India",
+        shipping_pincode="000000",
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+
+    order_item = OrderItem(
+        order_id=order.id,
+        product_id=product.id,
+        product_name=product.title,
+        product_price=product.price,
+        quantity=1,
+        subtotal=product.price,
+        thumbnail=product.thumbnail,
+    )
+    db.add(order_item)
+    db.commit()
 
     return user, headers, product
 
@@ -170,6 +200,23 @@ class TestRatingRecalculation:
         _, _, product = _setup(db)
         user2, headers2, _ = _setup(db, "review2@test.com")
 
+        order2 = Order(
+            user_id=user2.id, total=product.price, subtotal=product.price,
+            status=OrderStatus.DELIVERED, shipping_name="T", shipping_phone="0",
+            shipping_address_line_1="1 St", shipping_city="C", shipping_state="S",
+            shipping_country="India", shipping_pincode="000000",
+        )
+        db.add(order2)
+        db.commit()
+
+        order_item2 = OrderItem(
+            order_id=order2.id, product_id=product.id, product_name=product.title,
+            product_price=product.price, quantity=1, subtotal=product.price,
+            thumbnail=product.thumbnail,
+        )
+        db.add(order_item2)
+        db.commit()
+
         client.post(
             f"/api/v1/products/{product.id}/reviews",
             json={"rating": 3, "comment": "ok"},
@@ -185,6 +232,24 @@ class TestRatingRecalculation:
         )
         db.add(user3)
         db.commit()
+
+        order3 = Order(
+            user_id=user3.id, total=product.price, subtotal=product.price,
+            status=OrderStatus.DELIVERED, shipping_name="T", shipping_phone="0",
+            shipping_address_line_1="1 St", shipping_city="C", shipping_state="S",
+            shipping_country="India", shipping_pincode="000000",
+        )
+        db.add(order3)
+        db.commit()
+
+        order_item3 = OrderItem(
+            order_id=order3.id, product_id=product.id, product_name=product.title,
+            product_price=product.price, quantity=1, subtotal=product.price,
+            thumbnail=product.thumbnail,
+        )
+        db.add(order_item3)
+        db.commit()
+
         headers3 = {"Authorization": f"Bearer {create_access_token(subject=user3.id, role=user3.role)}"}
 
         client.post(

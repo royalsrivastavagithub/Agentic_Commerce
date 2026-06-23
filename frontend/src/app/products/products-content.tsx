@@ -9,6 +9,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Star } from "lucide-react"
 import { DynamicShell as Shell } from "@/components/features/dynamic-shell"
 import { Slider } from "@/components/ui/slider"
+import { buildSortParams, buildFilterParams } from "@/lib/filter-utils"
 import {
   Pagination,
   PaginationContent,
@@ -109,28 +110,12 @@ export default function ProductsContent() {
     ? ["products", "search", searchFromUrl, catId, page, minPrice, maxPrice, minRating, sort]
     : ["products", "list", skip, LIMIT, category, sort, minPrice, maxPrice, minRating, priceMin, priceMax]
 
-  const buildSortParams = () => {
-    if (sort === "default") return ""
-    if (sort === "price-asc") return "&sort_by=price&sort_order=asc"
-    if (sort === "price-desc") return "&sort_by=price&sort_order=desc"
-    if (sort === "rating") return "&sort_by=rating&sort_order=desc"
-    return ""
-  }
-
-  const buildFilterParams = () => {
-    let s = ""
-    if (minPrice && parseFloat(minPrice) > priceMin) s += `&min_price=${parseFloat(minPrice)}`
-    if (maxPrice && parseFloat(maxPrice) < priceMax) s += `&max_price=${parseFloat(maxPrice)}`
-    if (minRating > 0) s += `&min_rating=${minRating}`
-    return s
-  }
-
   const { data: productsData, isLoading } = useQuery({
     queryKey: productsQueryKey,
     enabled: urlReady && (category === "all" || catId !== undefined),
     queryFn: () => {
-      const sortParams = buildSortParams()
-      const filterParams = buildFilterParams()
+      const sortParams = buildSortParams(sort)
+      const filterParams = buildFilterParams(minPrice, maxPrice, minRating, priceMin, priceMax)
       if (searchFromUrl) {
         let url = `/products/search?q=${encodeURIComponent(searchFromUrl)}&skip=${skip}&limit=${LIMIT}`
         if (catId) url += `&category_id=${catId}`
