@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # In production, replace with your frontend's deployed URL.
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
+    # Google OAuth configuration
+    GOOGLE_CLIENT_ID: str = Field(
+        default="",
+        description="Google OAuth 2.0 Client ID for Sign-In"
+    )
+
     # Razorpay payment gateway configuration
     RAZORPAY_KEY_ID: str = Field(
         default="",

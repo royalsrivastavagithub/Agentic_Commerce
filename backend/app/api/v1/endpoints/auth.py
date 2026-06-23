@@ -1,7 +1,9 @@
+import secrets
 import logging
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.limiter import limiter
@@ -10,6 +12,11 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserUpdate, PasswordChange, Token, UserLogin
 from app.api.deps import get_current_user
 from app.services import user_service
+from app.services.google_auth import verify_google_token
+from app.core.security import get_password_hash, create_access_token
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +48,32 @@ def verify_email(
         "email": user.email,
         "is_verified": user.is_verified,
     }
+
+
+@router.post("/google", response_model=Token, summary="Login or register with Google Sign-In")
+def google_login(body: GoogleLoginRequest, db: Session = Depends(get_db)):
+    info = verify_google_token(body.id_token)
+    if not info or not info.get("email"):
+        logger.warning("Google token verification failed for token: %s...", body.id_token[:30])
+        raise HTTPException(status_code=400, detail="Invalid Google token")
+
+    user = db.query(User).filter(User.email == info["email"]).first()
+    if not user:
+        user = User(
+            email=info["email"],
+            hashed_password=get_password_hash(secrets.token_urlsafe(32)),
+            is_verified=True,
+            is_active=True,
+            role="user",
+            first_name=info.get("first_name") or None,
+            last_name=info.get("last_name") or None,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    access_token = create_access_token(subject=user.id, role=user.role)
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/login", response_model=Token, summary="Login with email and password (JSON)")

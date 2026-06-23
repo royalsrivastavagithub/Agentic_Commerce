@@ -20,7 +20,7 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     )
     if not user or not verify_password(password, user.hashed_password):
         return None
-    if not user.is_active or not user.is_verified:
+    if not user.is_active:
         return None
     return user
 
@@ -41,7 +41,7 @@ def register_user(db: Session, user_in: UserCreate) -> User:
         email=user_in.email,
         hashed_password=hashed_password,
         verification_token=verification_token,
-        is_verified=False,
+        is_verified=True,
         is_active=True,
         first_name=user_in.first_name,
         last_name=user_in.last_name,

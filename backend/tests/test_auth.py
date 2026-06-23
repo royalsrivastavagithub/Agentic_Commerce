@@ -20,7 +20,7 @@ def test_signup_flow(client: TestClient, db: Session):
     data = response.json()
     assert data["email"] == signup_payload["email"]
     assert data["is_active"] is True
-    assert data["is_verified"] is False
+    assert data["is_verified"] is True
     assert "id" in data
     assert data["first_name"] is None
     assert data["last_name"] is None
@@ -29,24 +29,7 @@ def test_signup_flow(client: TestClient, db: Session):
     # 2. Check the user in the database
     user_db = db.query(User).filter(User.email == signup_payload["email"]).first()
     assert user_db is not None
-    assert user_db.is_verified is False
-    assert user_db.verification_token is not None
-    
-    # Keep reference to the token
-    token = user_db.verification_token
-    
-    # 3. Try to verify the email with the generated token
-    verify_response = client.get(f"/api/v1/auth/verify-email?token={token}")
-    assert verify_response.status_code == 200
-    verify_data = verify_response.json()
-    assert verify_data["message"] == "Email verified successfully"
-    assert verify_data["email"] == signup_payload["email"]
-    assert verify_data["is_verified"] is True
-    
-    # 4. Check the database again to see if status updated and token cleared
-    db.refresh(user_db)
     assert user_db.is_verified is True
-    assert user_db.verification_token is None
 
 def test_signup_with_profile_fields(client: TestClient, db: Session):
     payload = {
@@ -152,21 +135,7 @@ def test_login_flow(client: TestClient, db: Session):
     )
     assert signup_response.status_code == 201
     
-    # 2. Try to log in before verification (should fail)
-    login_fail_response = client.post(
-        "/api/v1/auth/login",
-        json={"email": email, "password": password}
-    )
-    assert login_fail_response.status_code == 400
-    assert login_fail_response.json()["detail"] == "Invalid credentials"
-    
-    # 3. Verify user
-    user = db.query(User).filter(User.email == email).first()
-    token = user.verification_token
-    verify_response = client.get(f"/api/v1/auth/verify-email?token={token}")
-    assert verify_response.status_code == 200
-    
-    # 4. Login with JSON body (should succeed)
+    # 2. Login with JSON body (should succeed immediately)
     login_success_response = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": password}
@@ -331,19 +300,6 @@ class TestUserState:
         resp2 = client.get(f"/api/v1/auth/verify-email?token={token}")
         assert resp2.status_code == 400
         assert resp2.json()["detail"] == "Invalid or expired verification token"
-
-    def test_login_with_unverified_email_fails(self, client: TestClient, db: Session):
-        client.post(
-            "/api/v1/auth/signup",
-            json={"email": "unverified@test.com", "password": "Tes@1234"},
-        )
-        resp = client.post(
-            "/api/v1/auth/login",
-            json={"email": "unverified@test.com", "password": "Tes@1234"},
-        )
-        assert resp.status_code == 400
-        assert resp.json()["detail"] == "Invalid credentials"
-
 
 class TestAuthEdgeCases:
     def test_login_empty_password(self, client: TestClient, db: Session):
