@@ -184,7 +184,7 @@ export default function ProductDetailContent() {
             <div className="space-y-1">
               {(product.discountPercentage ?? product.discount_percentage ?? 0) > 0 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground line-through">-{product.discountPercentage ?? product.discount_percentage ?? 0}%</span>
+                  <span className="text-sm text-muted-foreground">-{product.discountPercentage ?? product.discount_percentage ?? 0}%</span>
                 </div>
               )}
               <div className="flex items-baseline gap-2">

@@ -169,6 +169,7 @@ function MiniCard({ product }: { product: Product }) {
         <div className="mt-1">
           <span className="text-sm font-bold">₹{discounted.toFixed(2)}</span>
           <span className="ml-1 text-[10px] text-muted-foreground line-through">₹{product.price.toFixed(2)}</span>
+          <span className="ml-1 rounded bg-red-100 px-1 py-0.5 text-[10px] font-medium text-red-700">-{product.discountPercentage ?? product.discount_percentage ?? 0}%</span>
         </div>
       ) : (
         <p className="mt-1 text-sm font-bold">₹{product.price.toFixed(2)}</p>
