@@ -134,7 +134,7 @@ function ProfileInner() {
           <EditableRow label="First Name" field="first_name" value={p?.first_name || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending} />
           <EditableRow label="Last Name" field="last_name" value={p?.last_name || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending} />
           <EditableRow label="Phone" field="phone" value={p?.phone || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending} />
-          <EditableRow label="Date of Birth" field="date_of_birth" value={p?.date_of_birth || ""} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending}
+          <EditableRow label="Date of Birth" field="date_of_birth" value={p?.date_of_birth || ""} displayValue={p?.date_of_birth ? (() => { const [y,m,d] = p.date_of_birth!.split("-"); return `${d}/${m}/${y}` })() : "-"} editField={editField} editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} cancelEdit={cancelEdit} saveField={saveField} isSaving={updateProfile.isPending}
             renderEdit={(val, onChange) => (
               <div className="flex items-center gap-1">
                  {["DD", "MM", "YYYY"].map((ph, i) => {
@@ -285,13 +285,14 @@ type EditableRowProps = {
   cancelEdit: () => void
   saveField: () => void
   isSaving: boolean
+  displayValue?: string
   renderEdit?: (val: string, onChange: (v: string) => void) => React.ReactNode
 }
 
-function EditableRow({ label, field, value, editField, editValue, setEditValue, startEdit, cancelEdit, saveField, isSaving, renderEdit }: EditableRowProps) {
+function EditableRow({ label, field, value, editField, editValue, setEditValue, startEdit, cancelEdit, saveField, isSaving, displayValue, renderEdit }: EditableRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const isEditing = editField === field
-  const display = value || "-"
+  const display = (displayValue ?? value) || "-"
 
   useEffect(() => {
     if (isEditing && inputRef.current) inputRef.current.focus()
