@@ -14,6 +14,7 @@ from app.api.deps import get_current_user
 from app.services import user_service
 from app.services.google_auth import verify_google_token
 from app.core.security import get_password_hash, create_access_token
+from app.core.email import send_verification_email
 
 class GoogleLoginRequest(BaseModel):
     id_token: str
@@ -27,7 +28,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @limiter.limit("30/minute")
 def signup(request: Request, user_in: UserCreate, db: Session = Depends(get_db)):
     new_user = user_service.register_user(db, user_in)
-    logger.info("Generated verification token for %s: %s", new_user.email, new_user.verification_token)
+    token = new_user.verification_token
+    logger.info("Generated verification token for %s: %s", new_user.email, token)
+    sent = send_verification_email(new_user.email, token)
+    if not sent:
+        logger.warning("Verification email not sent to %s", new_user.email)
     return new_user
 
 

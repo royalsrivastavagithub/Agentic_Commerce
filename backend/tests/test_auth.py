@@ -20,7 +20,7 @@ def test_signup_flow(client: TestClient, db: Session):
     data = response.json()
     assert data["email"] == signup_payload["email"]
     assert data["is_active"] is True
-    assert data["is_verified"] is True
+    assert data["is_verified"] is False
     assert "id" in data
     assert data["first_name"] is None
     assert data["last_name"] is None
@@ -29,7 +29,7 @@ def test_signup_flow(client: TestClient, db: Session):
     # 2. Check the user in the database
     user_db = db.query(User).filter(User.email == signup_payload["email"]).first()
     assert user_db is not None
-    assert user_db.is_verified is True
+    assert user_db.is_verified is False
 
 def test_signup_with_profile_fields(client: TestClient, db: Session):
     payload = {
@@ -135,7 +135,12 @@ def test_login_flow(client: TestClient, db: Session):
     )
     assert signup_response.status_code == 201
     
-    # 2. Login with JSON body (should succeed immediately)
+    # 2. Verify email first
+    user = db.query(User).filter(User.email == email).first()
+    verify_resp = client.get(f"/api/v1/auth/verify-email?token={user.verification_token}")
+    assert verify_resp.status_code == 200
+    
+    # 3. Login with JSON body (should succeed after verification)
     login_success_response = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": password}

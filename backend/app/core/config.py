@@ -47,4 +47,26 @@ class Settings(BaseSettings):
         description="Razorpay webhook signing secret"
     )
 
+    # SMTP email configuration (Gmail App Password recommended for dev)
+    SMTP_HOST: str = Field(
+        default="smtp.gmail.com",
+        description="SMTP server hostname"
+    )
+    SMTP_PORT: int = Field(
+        default=587,
+        description="SMTP server port"
+    )
+    SMTP_USER: str = Field(
+        default="",
+        description="SMTP username (full email address)"
+    )
+    SMTP_PASSWORD: str = Field(
+        default="",
+        description="SMTP password or App Password"
+    )
+    FRONTEND_URL: str = Field(
+        default="http://localhost:3000",
+        description="Frontend base URL for building verification links"
+    )
+
 settings = Settings()

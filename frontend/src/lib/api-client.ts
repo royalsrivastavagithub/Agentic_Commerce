@@ -15,7 +15,7 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  opts?: { headers?: Record<string, string> },
+  opts?: { headers?: Record<string, string>; signal?: AbortSignal },
 ): Promise<T> {
   const token = getToken()
   const headers: Record<string, string> = {
@@ -32,6 +32,7 @@ async function request<T>(
       method,
       headers,
       body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+      signal: opts?.signal,
     })
   } catch (err) {
     throw new ApiError(0, err instanceof TypeError ? "Network error — check your connection" : "Request failed")
@@ -65,19 +66,19 @@ export class ApiError extends Error {
 }
 
 export const api = {
-  get<T>(path: string): Promise<T> {
-    return request<T>("GET", path)
+  get<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T> {
+    return request<T>("GET", path, undefined, opts)
   },
-  post<T>(path: string, body?: unknown): Promise<T> {
-    return request<T>("POST", path, body)
+  post<T>(path: string, body?: unknown, opts?: { signal?: AbortSignal }): Promise<T> {
+    return request<T>("POST", path, body, opts)
   },
-  put<T>(path: string, body?: unknown): Promise<T> {
-    return request<T>("PUT", path, body)
+  put<T>(path: string, body?: unknown, opts?: { signal?: AbortSignal }): Promise<T> {
+    return request<T>("PUT", path, body, opts)
   },
-  patch<T>(path: string, body?: unknown): Promise<T> {
-    return request<T>("PATCH", path, body)
+  patch<T>(path: string, body?: unknown, opts?: { signal?: AbortSignal }): Promise<T> {
+    return request<T>("PATCH", path, body, opts)
   },
-  delete<T>(path: string): Promise<T> {
-    return request<T>("DELETE", path)
+  delete<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T> {
+    return request<T>("DELETE", path, undefined, opts)
   },
 }
