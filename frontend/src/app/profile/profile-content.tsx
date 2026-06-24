@@ -78,9 +78,11 @@ function ProfileInner() {
 
   const setPassword = useMutation({
     mutationFn: (data: { new_password: string }) =>
-      api.post("/auth/users/me/set-password", data),
-    onSuccess: () => {
+      api.post<User>("/auth/users/me/set-password", data),
+    onSuccess: (data) => {
       toast.success("Password set successfully — you can now also log in with email/password")
+      login(useAuthStore.getState().token!, data)
+      queryClient.invalidateQueries({ queryKey: ["profile"] })
       setShowChangePw(false)
       setPwCurrent("")
       setPwNew("")
@@ -157,7 +159,7 @@ function ProfileInner() {
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const p = profile || user
+  const p = user || profile
   const addresses = (p as User & { addresses?: Address[] })?.addresses || []
 
   const startEdit = (field: string, currentValue: string) => {
