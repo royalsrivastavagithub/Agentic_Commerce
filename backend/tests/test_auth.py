@@ -105,7 +105,7 @@ def test_login_nonexistent_email(client: TestClient):
         json={"email": "nobody@example.com", "password": "Tes@1234"},
     )
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "Invalid credentials"
+    assert resp.json()["detail"] == "Account not found"
 
 
 def test_login_access_token_wrong_password(client: TestClient, db: Session):
@@ -290,7 +290,7 @@ class TestUserState:
             json={"email": "inactive@test.com", "password": "Tes@1234"},
         )
         assert resp.status_code == 400
-        assert resp.json()["detail"] == "Invalid credentials"
+        assert resp.json()["detail"] == "Account is disabled"
 
     def test_verify_email_twice_returns_error(self, client: TestClient, db: Session):
         resp = client.post(

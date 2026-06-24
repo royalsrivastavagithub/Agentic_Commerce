@@ -68,9 +68,19 @@ def verify_email(db: Session, token: str) -> User:
 
 
 def login_user(db: Session, email: str, password: str) -> dict:
-    user = authenticate_user(db, email, password)
+    user = (
+        db.query(User)
+        .filter(func.lower(User.email) == func.lower(email))
+        .first()
+    )
     if not user:
+        raise BadRequestError("Account not found")
+    if not verify_password(password, user.hashed_password):
         raise BadRequestError("Invalid credentials")
+    if not user.is_active:
+        raise BadRequestError("Account is disabled")
+    if not user.is_verified:
+        raise BadRequestError("Please verify your email before logging in")
     access_token = create_access_token(subject=user.id, role=user.role)
     return {"access_token": access_token, "token_type": "bearer", "user": user}
 
