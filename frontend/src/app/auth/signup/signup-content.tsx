@@ -69,7 +69,7 @@ export default function SignupContent() {
 
       await api.post<User>("/auth/signup", payload)
       setDone(true)
-      toast.success("Account created! You can now log in.")
+      toast.success("Account created! Check your email to verify your account.")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Signup failed")
     } finally {
@@ -86,7 +86,7 @@ export default function SignupContent() {
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl font-bold">Account Created</CardTitle>
-              <CardDescription>You can now sign in with your credentials</CardDescription>
+              <CardDescription>Please verify your email before signing in</CardDescription>
             </CardHeader>
             <CardFooter>
               <Link href="/auth/login" className={buttonVariants({ className: "w-full" })}>
