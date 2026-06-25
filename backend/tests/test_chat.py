@@ -46,24 +46,28 @@ def test_chat_empty_response(mock_run_chat, client: TestClient, user_token_heade
 
 @patch("app.api.v1.endpoints.chat.run_chat")
 def test_chat_with_history(mock_run_chat, client: TestClient, user_token_headers: dict):
-    mock_run_chat.return_value = "The cheapest is the Brown Leather Belt Watch at $89.99."
+    mock_run_chat.return_value = "Yes, your name is Royal!"
 
     resp = client.post(
         "/api/v1/chat",
         json={
-            "message": "which one is the cheapest?",
+            "message": "what is my name?",
             "history": [
-                {"role": "user", "content": "search watch"},
-                {"role": "assistant", "content": "I found 5 watches."},
+                {"role": "user", "content": "hi my name is royal"},
+                {"role": "assistant", "content": "Hello Royal! Welcome."},
             ],
         },
         headers=user_token_headers,
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["response"] == "The cheapest is the Brown Leather Belt Watch at $89.99."
-    assert mock_run_chat.call_args[0][2] == "User: search watch\nAssistant: I found 5 watches."
-    assert mock_run_chat.call_args[0][3] == "which one is the cheapest?"
+    assert data["response"] == "Yes, your name is Royal!"
+    args = mock_run_chat.call_args[0]
+    assert args[2] == [
+        {"role": "user", "content": "hi my name is royal"},
+        {"role": "assistant", "content": "Hello Royal! Welcome."},
+    ]
+    assert args[3] == "what is my name?"
 
 
 @patch("app.api.v1.endpoints.chat.run_chat")

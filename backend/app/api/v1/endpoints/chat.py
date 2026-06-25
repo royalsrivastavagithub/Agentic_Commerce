@@ -22,11 +22,8 @@ def chat(
         )
 
     try:
-        history_text = "\n".join(
-            f"{'User' if h.role == 'user' else 'Assistant'}: {h.content}"
-            for h in body.history
-        )
-        response_text = run_chat(db, current_user, history_text, body.message)
+        history = [{"role": h.role, "content": h.content} for h in body.history]
+        response_text = run_chat(db, current_user, history, body.message)
         return ChatResponse(response=response_text or "")
     except Exception as e:
         raise HTTPException(

@@ -1,3 +1,4 @@
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_ollama import ChatOllama
 from sqlalchemy.orm import Session
 
@@ -10,32 +11,33 @@ def get_model(temperature: float = 0.1) -> ChatOllama:
     return ChatOllama(model="gemma4", temperature=temperature)
 
 
-def run_chat(db: Session, user: User, history_text: str, current_message: str) -> str:
+def run_chat(db: Session, user: User, history: list[dict], current_message: str) -> str:
     model = get_model()
     tools = make_tools(db, user)
 
-    context = SYSTEM_PROMPT
-    if history_text:
-        context += f"\n\n{history_text}"
-    context += f"\n\nUser: {current_message}"
+    messages = [SystemMessage(content=SYSTEM_PROMPT)]
+    for h in history:
+        if h["role"] == "user":
+            messages.append(HumanMessage(content=h["content"]))
+        else:
+            messages.append(AIMessage(content=h["content"]))
+    messages.append(HumanMessage(content=current_message))
 
     model_with_tools = model.bind_tools(tools)
-    max_turns = 6
 
-    for turn in range(max_turns):
-        result = model_with_tools.invoke(context)
+    for _ in range(6):
+        result = model_with_tools.invoke(messages)
 
         if not result.tool_calls:
             return result.content or ""
 
+        messages.append(result)
         for tc in result.tool_calls:
-            tool_name = tc["name"]
-            tool_args = tc["args"]
-            tool_result = None
+            tool_result = ""
             for t in tools:
-                if t.name == tool_name:
-                    tool_result = t.invoke(tool_args)
+                if t.name == tc["name"]:
+                    tool_result = t.invoke(tc["args"]) or ""
                     break
-            context += f"\n\n[Tool {tool_name}({tool_args}) returned: {tool_result}]"
+            messages.append(ToolMessage(content=str(tool_result), tool_call_id=tc["id"]))
 
     return "I'm having trouble processing your request. Please try again."

@@ -41,13 +41,18 @@ export function AgentChat() {
     const text = input.trim()
     if (!text || loading) return
 
+    const history = messages.slice(1).map((m) => ({ role: m.role, content: m.content }))
+
     setMessages((prev) => [...prev, { role: "user", content: text }])
     setInput("")
     setLoading(true)
     setError(null)
 
+    console.log("[chat] message:", text)
+    console.log("[chat] history:", JSON.stringify(history))
+    console.log("[chat] messages count:", messages.length)
+
     try {
-      const history = messages.slice(-20).map((m) => ({ role: m.role, content: m.content }))
       const data = await api.post<{ response: string }>("/chat", {
         message: text,
         history,
