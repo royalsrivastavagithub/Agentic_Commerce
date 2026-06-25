@@ -127,9 +127,25 @@ class TestListCategories:
         pass
 
 
+class TestAddToCart:
+    def test_add_product(self, tools, product: Product):
+        result = tools[3].invoke({"product_id": product.id, "quantity": 1})
+        assert "Smartphone X" in result
+        assert "Added" in result
+
+    def test_add_multiple(self, tools, product: Product):
+        result = tools[3].invoke({"product_id": product.id, "quantity": 3})
+        assert "3" in result
+        assert "Smartphone X" in result
+
+    def test_nonexistent_product(self, tools):
+        result = tools[3].invoke({"product_id": 99999})
+        assert "not found" in result.lower()
+
+
 class TestGetCartSummary:
     def test_empty_cart(self, tools):
-        result = tools[3].invoke({})
+        result = tools[4].invoke({})
         assert "empty" in result.lower()
 
     def test_with_items(self, db: Session, tools, user: User, product: Product):
@@ -148,7 +164,7 @@ class TestGetCartSummary:
         db.commit()
         db.refresh(item)
 
-        result = tools[3].invoke({})
+        result = tools[4].invoke({})
         assert "Smartphone X" in result
         assert "x2" in result
         assert "$629.99" in result

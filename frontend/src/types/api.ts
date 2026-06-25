@@ -228,3 +228,8 @@ export interface RevenuePoint {
   date: string
   revenue: number
 }
+
+export interface ChatResponse {
+  response: string
+  products: Product[]
+}

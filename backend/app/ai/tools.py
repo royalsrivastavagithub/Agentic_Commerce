@@ -3,12 +3,15 @@ from sqlalchemy.orm import Session
 
 from app.models.cart import Cart, CartItem
 from app.models.category import Category
+from app.models.product import Product
 from app.models.user import User
+from app.core.exceptions import BadRequestError, NotFoundError
+from app.services.cart_service import add_cart_item as _add_cart_item
 from app.services.product_service import search_products as _search_products
 from app.services.product_service import get_product_by_id as _get_product_by_id
 
 
-def make_tools(db: Session, user: User) -> list:
+def make_tools(db: Session, user: User, found_products: list | None = None) -> list:
     @tool
     def search_products(
         query: str,
@@ -55,6 +58,8 @@ def make_tools(db: Session, user: User) -> list:
 
         lines = [f"Found {total} product(s):"]
         for p in items:
+            if found_products is not None:
+                found_products.append(p)
             price = f"${p.price:.2f}"
             rating = f"{p.rating}/5" if p.rating else "N/A"
             brand = f" [{p.brand}]" if p.brand else ""
@@ -69,6 +74,9 @@ def make_tools(db: Session, user: User) -> list:
             p = _get_product_by_id(db, product_id)
         except Exception:
             return f"Product with ID {product_id} not found."
+
+        if found_products is not None:
+            found_products.append(p)
 
         price = f"${p.price:.2f}"
         discount = f"{p.discount_percentage:.0f}% off" if p.discount_percentage > 0 else "No discount"
@@ -98,6 +106,21 @@ def make_tools(db: Session, user: User) -> list:
         return "Available categories:\n" + "\n".join(f"- {c.name}" for c in cats)
 
     @tool
+    def add_to_cart(product_id: int, quantity: int = 1) -> str:
+        """Add a product to your shopping cart by product ID and quantity.
+
+        Args:
+            product_id: The ID of the product to add.
+            quantity: How many units to add (default 1).
+        """
+        try:
+            p = _get_product_by_id(db, product_id)
+            _add_cart_item(db, user.id, product_id, quantity)
+            return f"Added {quantity} × **{p.title}** to your cart."
+        except (BadRequestError, NotFoundError) as e:
+            return str(e)
+
+    @tool
     def get_cart_summary() -> str:
         """View the current user's shopping cart contents and total price."""
         cart = db.query(Cart).filter(Cart.user_id == user.id).first()
@@ -119,4 +142,4 @@ def make_tools(db: Session, user: User) -> list:
         lines.append(f"\nTotal: ${total:.2f}")
         return "\n".join(lines)
 
-    return [search_products, get_product_details, list_categories, get_cart_summary]
+    return [search_products, get_product_details, list_categories, add_to_cart, get_cart_summary]

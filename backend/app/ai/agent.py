@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.prompts import SYSTEM_PROMPT
 from app.ai.tools import make_tools
+from app.models.product import Product
 from app.models.user import User
 
 
@@ -11,9 +12,25 @@ def get_model(temperature: float = 0.1) -> ChatOllama:
     return ChatOllama(model="gemma4", temperature=temperature)
 
 
-def run_chat(db: Session, user: User, history: list[dict], current_message: str) -> str:
+def _product_to_dict(p: Product) -> dict:
+    return {
+        "id": p.id,
+        "title": p.title,
+        "price": p.price,
+        "thumbnail": p.thumbnail,
+        "rating": p.rating,
+        "discount_percentage": p.discount_percentage,
+        "brand": p.brand,
+        "description": p.description,
+        "review_count": p.review_count,
+        "stock": p.stock,
+    }
+
+
+def run_chat(db: Session, user: User, history: list[dict], current_message: str) -> tuple[str, list[dict]]:
     model = get_model()
-    tools = make_tools(db, user)
+    found_products: list[Product] = []
+    tools = make_tools(db, user, found_products)
 
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
     for h in history:
@@ -29,7 +46,7 @@ def run_chat(db: Session, user: User, history: list[dict], current_message: str)
         result = model_with_tools.invoke(messages)
 
         if not result.tool_calls:
-            return result.content or ""
+            return result.content or "", [_product_to_dict(p) for p in found_products]
 
         messages.append(result)
         for tc in result.tool_calls:
@@ -40,4 +57,4 @@ def run_chat(db: Session, user: User, history: list[dict], current_message: str)
                     break
             messages.append(ToolMessage(content=str(tool_result), tool_call_id=tc["id"]))
 
-    return "I'm having trouble processing your request. Please try again."
+    return "I'm having trouble processing your request. Please try again.", [_product_to_dict(p) for p in found_products]

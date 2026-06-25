@@ -7,26 +7,41 @@ import { api, ApiError } from "@/lib/api-client"
 import { useAuthStore } from "@/stores/auth-store"
 import { Send, Bot, User, Loader2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ProductCard } from "@/components/ui/product-card"
+import type { Product, ChatResponse } from "@/types/api"
 
 interface Message {
   role: "user" | "assistant"
   content: string
+  products?: Product[]
+}
+
+const WELCOME: Message = {
+  role: "assistant",
+  content:
+    "Hi! I'm your AI shopping assistant. I can help you find products, browse categories, check your cart, and more. What are you looking for today?",
 }
 
 export function AgentChat() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content:
-        "Hi! I'm your AI shopping assistant. I can help you find products, browse categories, check your cart, and more. What are you looking for today?",
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("agent-chat-messages")
+        if (saved) return JSON.parse(saved) as Message[]
+      } catch { /* ignore */ }
+    }
+    return [WELCOME]
+  })
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const { isAuthenticated } = useAuthStore()
+
+  useEffect(() => {
+    sessionStorage.setItem("agent-chat-messages", JSON.stringify(messages))
+  }, [messages])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -48,18 +63,14 @@ export function AgentChat() {
     setLoading(true)
     setError(null)
 
-    console.log("[chat] message:", text)
-    console.log("[chat] history:", JSON.stringify(history))
-    console.log("[chat] messages count:", messages.length)
-
     try {
-      const data = await api.post<{ response: string }>("/chat", {
+      const data = await api.post<ChatResponse>("/chat", {
         message: text,
         history,
       })
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.response || "I'm not sure how to respond to that." },
+        { role: "assistant", content: data.response || "I'm not sure how to respond to that.", products: data.products },
       ])
     } catch (err) {
       const detail =
@@ -115,9 +126,18 @@ export function AgentChat() {
                 }`}
               >
                 {msg.role === "assistant" ? (
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                  </div>
+                  <>
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                    </div>
+                    {msg.products && msg.products.length > 0 && (
+                      <div className="mt-3 space-y-3">
+                        {msg.products.map((p) => (
+                          <ProductCard key={p.id} product={p} newTab />
+                        ))}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 shrink-0" />
