@@ -1,13 +1,18 @@
 import json
-import re
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_ollama import ChatOllama
 from sqlalchemy.orm import Session
 
+from app.ai.conversation import (
+    ConversationState,
+    add_message,
+    get_or_create_conversation,
+    get_recent_history,
+)
+from app.ai.intent import classify_intent, filter_tools
 from app.ai.prompts import SYSTEM_PROMPT
-from app.ai.tools import make_tools
-from app.core.exceptions import NotFoundError
+from app.ai.tools import make_context_tools
 from app.models.product import Product
 from app.models.user import User
 from app.services.product_service import get_product_by_id as _get_product_by_id
@@ -31,16 +36,6 @@ def get_model(temperature: float = 0.1) -> ChatOllama:
     return ChatOllama(model="gemma4", temperature=temperature)
 
 
-def _deduplicate(products: list[Product]) -> list[Product]:
-    seen: set[int] = set()
-    result: list[Product] = []
-    for p in products:
-        if p.id not in seen:
-            seen.add(p.id)
-            result.append(p)
-    return result
-
-
 def _product_to_dict(p: Product) -> dict:
     return {
         "id": p.id,
@@ -56,59 +51,122 @@ def _product_to_dict(p: Product) -> dict:
     }
 
 
-def run_chat(db: Session, user: User, history: list[dict], current_message: str) -> tuple[str, list[dict]]:
-    model = get_model()
-    found_products: list[Product] = []
-    tools = make_tools(db, user, found_products)
+def _lookup_products(db: Session, ids: list[int]) -> list[dict]:
+    result = []
+    seen = set()
+    for pid in ids:
+        if pid in seen:
+            continue
+        seen.add(pid)
+        try:
+            p = _get_product_by_id(db, pid)
+            result.append(_product_to_dict(p))
+        except Exception:
+            pass
+    return result
 
-    messages = [SystemMessage(content=SYSTEM_PROMPT)]
+
+def run_chat(
+    db: Session,
+    user: User,
+    conversation_id: int | None,
+    current_message: str,
+) -> tuple[str, list[dict], int]:
+    model = get_model()
+    state = ConversationState()
+
+    conversation = get_or_create_conversation(db, user.id, conversation_id)
+    history = get_recent_history(db, conversation.id)
+    tools = make_context_tools(db, user)
+
+    intent = classify_intent(current_message)
+    state.last_intent = intent
+    allowed_tools = filter_tools(tools, intent)
+
+    intent_context = f"\nUser intent: {intent}. Choose tools as needed to fulfill the request."
+    messages = [SystemMessage(content=SYSTEM_PROMPT + intent_context)]
+
+    prev_ids: list[int] = []
+    for h in history:
+        if h["role"] == "assistant" and h.get("product_ids"):
+            prev_ids.extend(h["product_ids"])
+
+    if prev_ids:
+        unique = list(dict.fromkeys(prev_ids))[-8:]
+        mappings = []
+        for pid in unique:
+            try:
+                p = _get_product_by_id(db, pid)
+                mappings.append(f"{p.title} (id={pid})")
+            except Exception:
+                mappings.append(f"id={pid}")
+        context = "Products in context: " + "; ".join(mappings)
+        messages.append(SystemMessage(content=context))
+    else:
+        messages.append(SystemMessage(content="No previous search context."))
+
     for h in history:
         if h["role"] == "user":
             messages.append(HumanMessage(content=h["content"]))
         else:
-            messages.append(AIMessage(content=h["content"]))
+            content = h["content"]
+            messages.append(AIMessage(content=content))
     messages.append(HumanMessage(content=current_message))
 
-    model_with_tools = model.bind_tools(tools)
-    _log_messages(messages, "initial")
+    model_with_tools = model.bind_tools(allowed_tools)
+    _log_messages(messages, f"initial (intent={intent})")
+
+    product_ids: list[int] = []
+    response_text = ""
 
     for iteration in range(6):
-        print(f"\n--- Iteration {iteration + 1} ---")
+        print(f"\n--- Iteration {iteration + 1} (intent={intent}) ---")
         result = model_with_tools.invoke(messages)
         print(f"Result content: {result.content!r}")
         if result.tool_calls:
             print(f"Tool calls: {[(tc['name'], tc['args']) for tc in result.tool_calls]}")
 
         if not result.tool_calls:
-            response_text = result.content or ""
-
+            response_text = (result.content or "").strip()
             if not response_text:
-                return "Sorry, I couldn't process that. Please try rephrasing.", []
-
-            mentioned_ids = set(int(m) for m in re.findall(r'\(ID:\s*(\d+)\)', response_text))
-            existing_ids = {p.id for p in found_products}
-            for pid in mentioned_ids - existing_ids:
-                try:
-                    p = _get_product_by_id(db, pid)
-                    found_products.append(p)
-                except NotFoundError:
-                    pass
-
-            captured = [p for p in found_products if p.id in mentioned_ids]
-
-            clean_text = re.sub(r'\s*\(ID:\s*\d+\)', '', response_text)
-            clean_text = clean_text.replace('**', '')
-            return clean_text, [_product_to_dict(p) for p in _deduplicate(captured)]
+                response_text = "Sorry, I couldn't process that. Please try rephrasing."
+            break
 
         messages.append(result)
         for tc in result.tool_calls:
-            tool_result = ""
-            for t in tools:
+            tool_result: dict = {}
+            for t in allowed_tools:
                 if t.name == tc["name"]:
-                    tool_result = t.invoke(tc["args"]) or ""
+                    try:
+                        raw = t.invoke(tc["args"])
+                        if isinstance(raw, dict):
+                            tool_result = raw
+                        else:
+                            tool_result = {"message": str(raw)}
+                    except Exception as e:
+                        tool_result = {"error": str(e)}
                     break
-            print(f"Tool '{tc['name']}' result ({len(tool_result)} chars): {tool_result[:200]}")
-            messages.append(ToolMessage(content=str(tool_result), tool_call_id=tc["id"]))
+
+            print(f"Tool '{tc['name']}' result: {json.dumps(tool_result, default=str)[:300]}")
+
+            if "product_ids" in tool_result:
+                product_ids.extend(tool_result["product_ids"])
+            if "product_id" in tool_result:
+                pid = tool_result["product_id"]
+                if pid and pid not in product_ids:
+                    product_ids.append(pid)
+
+            messages.append(ToolMessage(
+                content=json.dumps(tool_result, default=str),
+                tool_call_id=tc["id"],
+            ))
         _log_messages(messages, f"after_iteration_{iteration + 1}")
 
-    return "I'm having trouble processing your request. Please try again.", [_product_to_dict(p) for p in _deduplicate(found_products)]
+    if not response_text:
+        response_text = "I'm having trouble processing your request. Please try again."
+
+    add_message(db, conversation.id, "user", current_message)
+    add_message(db, conversation.id, "assistant", response_text, product_ids=product_ids)
+
+    products = _lookup_products(db, product_ids)
+    return response_text, products, conversation.id

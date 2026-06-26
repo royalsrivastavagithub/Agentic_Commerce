@@ -19,7 +19,7 @@ def test_chat_empty_message(client: TestClient, user_token_headers: dict):
 
 @patch("app.api.v1.endpoints.chat.run_chat")
 def test_chat_success(mock_run_chat, client: TestClient, user_token_headers: dict):
-    mock_run_chat.return_value = ("I can help you find products!", [])
+    mock_run_chat.return_value = ("I can help you find products!", [], 1)
 
     resp = client.post(
         "/api/v1/chat",
@@ -30,11 +30,12 @@ def test_chat_success(mock_run_chat, client: TestClient, user_token_headers: dic
     data = resp.json()
     assert data["response"] == "I can help you find products!"
     assert data["products"] == []
+    assert data["conversation_id"] == 1
 
 
 @patch("app.api.v1.endpoints.chat.run_chat")
 def test_chat_empty_response(mock_run_chat, client: TestClient, user_token_headers: dict):
-    mock_run_chat.return_value = ("", [])
+    mock_run_chat.return_value = ("", [], 2)
 
     resp = client.post(
         "/api/v1/chat",
@@ -45,20 +46,18 @@ def test_chat_empty_response(mock_run_chat, client: TestClient, user_token_heade
     data = resp.json()
     assert data["response"] == ""
     assert data["products"] == []
+    assert data["conversation_id"] == 2
 
 
 @patch("app.api.v1.endpoints.chat.run_chat")
 def test_chat_with_history(mock_run_chat, client: TestClient, user_token_headers: dict):
-    mock_run_chat.return_value = ("Yes, your name is Royal!", [])
+    mock_run_chat.return_value = ("Yes, your name is Royal!", [], 3)
 
     resp = client.post(
         "/api/v1/chat",
         json={
             "message": "what is my name?",
-            "history": [
-                {"role": "user", "content": "hi my name is royal"},
-                {"role": "assistant", "content": "Hello Royal! Welcome."},
-            ],
+            "conversation_id": 5,
         },
         headers=user_token_headers,
     )
@@ -67,10 +66,7 @@ def test_chat_with_history(mock_run_chat, client: TestClient, user_token_headers
     assert data["response"] == "Yes, your name is Royal!"
     assert data["products"] == []
     args = mock_run_chat.call_args[0]
-    assert args[2] == [
-        {"role": "user", "content": "hi my name is royal"},
-        {"role": "assistant", "content": "Hello Royal! Welcome."},
-    ]
+    assert args[2] == 5
     assert args[3] == "what is my name?"
 
 
@@ -90,7 +86,7 @@ def test_chat_products_in_response(mock_run_chat, client: TestClient, user_token
             "stock": 10,
         }
     ]
-    mock_run_chat.return_value = ("Found 1 product(s):", products)
+    mock_run_chat.return_value = ("Found 1 product(s):", products, 4)
 
     resp = client.post(
         "/api/v1/chat",
@@ -101,6 +97,7 @@ def test_chat_products_in_response(mock_run_chat, client: TestClient, user_token
     data = resp.json()
     assert data["response"] == "Found 1 product(s):"
     assert data["products"] == products
+    assert data["conversation_id"] == 4
 
 
 @patch("app.api.v1.endpoints.chat.run_chat")

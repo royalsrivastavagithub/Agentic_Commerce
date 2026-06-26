@@ -232,4 +232,5 @@ export interface RevenuePoint {
 export interface ChatResponse {
   response: string
   products: Product[]
+  conversation_id?: number
 }

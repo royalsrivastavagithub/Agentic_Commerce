@@ -22,9 +22,14 @@ def chat(
         )
 
     try:
-        history = [{"role": h.role, "content": h.content} for h in body.history]
-        response_text, products = run_chat(db, current_user, history, body.message)
-        return ChatResponse(response=response_text or "", products=products)
+        response_text, products, conversation_id = run_chat(
+            db, current_user, body.conversation_id, body.message,
+        )
+        return ChatResponse(
+            response=response_text or "",
+            products=products,
+            conversation_id=conversation_id,
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

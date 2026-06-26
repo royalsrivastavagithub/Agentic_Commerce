@@ -32,6 +32,7 @@ export function AgentChat() {
     }
     return [WELCOME]
   })
+  const [conversationId, setConversationId] = useState<number | null>(null)
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,8 +57,6 @@ export function AgentChat() {
     const text = input.trim()
     if (!text || loading) return
 
-    const history = messages.slice(1).map((m) => ({ role: m.role, content: m.content }))
-
     setMessages((prev) => [...prev, { role: "user", content: text }])
     setInput("")
     setLoading(true)
@@ -65,9 +64,10 @@ export function AgentChat() {
 
     try {
       const data = await api.post<ChatResponse>("/chat", {
+        conversation_id: conversationId,
         message: text,
-        history,
       })
+      if (data.conversation_id) setConversationId(data.conversation_id)
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: data.response || "I'm not sure how to respond to that.", products: data.products },

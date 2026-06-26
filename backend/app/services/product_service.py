@@ -1,3 +1,4 @@
+import re
 from typing import Any, Self
 
 from sqlalchemy import func, or_
@@ -12,6 +13,8 @@ SORT_COLUMNS = {
     "title": Product.title,
     "discount": Product.discount_percentage,
     "created_at": Product.id,
+    "review_count": Product.review_count,
+    "stock": Product.stock,
 }
 
 
@@ -120,7 +123,7 @@ def search_products(
     min_discount: float | None = None,
     is_featured: bool | None = None,
 ):
-    return (
+    items, total = (
         ProductQueryBuilder(db)
         .with_search(q)
         .with_category(category_id)
@@ -131,6 +134,20 @@ def search_products(
         .sort_by(sort_by, sort_order)
         .paginate(skip, limit)
     )
+    if not items and len(q) > 2 and q[-1].lower() == "s":
+        singular = re.sub(r"(?:es|s)$", "", q)
+        items, total = (
+            ProductQueryBuilder(db)
+            .with_search(singular)
+            .with_category(category_id)
+            .with_price_range(min_price, max_price)
+            .with_min_rating(min_rating)
+            .with_min_discount(min_discount)
+            .with_featured(is_featured)
+            .sort_by(sort_by, sort_order)
+            .paginate(skip, limit)
+        )
+    return items, total
 
 
 def get_featured_products(db: Session, skip: int = 0, limit: int = 8):
