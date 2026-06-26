@@ -1,7 +1,6 @@
 import json
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_ollama import ChatOllama
 from sqlalchemy.orm import Session
 
 from app.ai.conversation import (
@@ -15,14 +14,24 @@ from app.ai.conversation import (
 from app.ai.intent import classify_intent, filter_tools
 from app.ai.prompts import SYSTEM_PROMPT
 from app.ai.tools import make_context_tools
+from app.core.config import settings
 from app.models.product import Product
 from app.models.user import User
 from app.services.product_service import get_product_by_id as _get_product_by_id
 
 
 
-def get_model(temperature: float = 0.1) -> ChatOllama:
-    return ChatOllama(model="gemma4", temperature=temperature)
+def get_model(temperature: float = 0.1):
+    model = settings.AI_MODEL or None
+    if settings.AI_PROVIDER == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        return ChatGoogleGenerativeAI(
+            model=model or "gemini-2.0-flash",
+            temperature=temperature,
+            google_api_key=settings.GEMINI_API_KEY,
+        )
+    from langchain_ollama import ChatOllama
+    return ChatOllama(model=model or "gemma4", temperature=temperature)
 
 
 def _product_to_dict(p: Product) -> dict:

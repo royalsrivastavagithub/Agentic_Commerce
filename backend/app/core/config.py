@@ -106,4 +106,18 @@ class Settings(BaseSettings):
         description="Typesense API key for authentication"
     )
 
+    # AI Provider configuration
+    AI_PROVIDER: str = Field(
+        default="ollama",
+        description="AI model provider: 'ollama' for local (Gemma 4) or 'gemini' for Google Gemini API"
+    )
+    GEMINI_API_KEY: str = Field(
+        default="",
+        description="Google Gemini API key (required when AI_PROVIDER=gemini)"
+    )
+    AI_MODEL: str = Field(
+        default="",
+        description="AI model name (e.g. gemini-2.0-flash, gemma4). Empty uses provider default"
+    )
+
 settings = Settings()
