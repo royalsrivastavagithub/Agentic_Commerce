@@ -108,83 +108,21 @@ class TestSearchProducts:
         assert isinstance(result, dict)
         assert product.id in result["product_ids"]
 
-
-class TestHighestRated:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "highest_rated")
-        result = fn.invoke({})
+    def test_sort_by_rating_desc(self, tools, product):
+        fn = _by_name(tools, "search_products")
+        result = fn.invoke({"query": "Smartphone", "sort_by": "rating", "sort_order": "desc"})
         assert isinstance(result, dict)
         assert "product_ids" in result
 
-
-class TestLowestRated:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "lowest_rated")
-        result = fn.invoke({})
+    def test_sort_by_price_asc(self, tools, product):
+        fn = _by_name(tools, "search_products")
+        result = fn.invoke({"query": "Smartphone", "sort_by": "price", "sort_order": "asc"})
         assert isinstance(result, dict)
         assert "product_ids" in result
 
-
-class TestMostExpensive:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "most_expensive")
-        result = fn.invoke({})
-        assert isinstance(result, dict)
-        assert "product_ids" in result
-
-
-class TestCheapest:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "cheapest")
-        result = fn.invoke({})
-        assert isinstance(result, dict)
-        assert "product_ids" in result
-
-
-class TestBestDiscount:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "best_discount")
-        result = fn.invoke({})
-        assert isinstance(result, dict)
-        assert "product_ids" in result
-
-
-class TestMostReviewed:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "most_reviewed")
-        result = fn.invoke({})
-        assert isinstance(result, dict)
-        assert "product_ids" in result
-
-
-class TestLeastReviewed:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "least_reviewed")
-        result = fn.invoke({})
-        assert isinstance(result, dict)
-        assert "product_ids" in result
-
-
-class TestNewestArrivals:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "newest_arrivals")
-        result = fn.invoke({})
-        assert isinstance(result, dict)
-        assert "product_ids" in result
-
-
-class TestHighestStock:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "highest_stock")
-        result = fn.invoke({})
-        assert isinstance(result, dict)
-        assert "product_ids" in result
-
-
-class TestLowestStock:
-    def test_found(self, tools, product):
-        fn = _by_name(tools, "lowest_stock")
-        result = fn.invoke({})
+    def test_sort_by_stock_desc(self, tools, product):
+        fn = _by_name(tools, "search_products")
+        result = fn.invoke({"query": "Smartphone", "sort_by": "stock", "sort_order": "desc"})
         assert isinstance(result, dict)
         assert "product_ids" in result
 

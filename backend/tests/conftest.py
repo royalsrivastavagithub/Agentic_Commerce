@@ -6,7 +6,11 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.session import Base, get_db
 from app.main import app
+from app.core.config import settings
 from app.core.security import get_password_hash, create_access_token
+
+# Disable Typesense in tests
+settings.TYPESENSE_ENABLED = False
 from app.models.user import User
 from app.models.category import Category
 from app.models.product import Product

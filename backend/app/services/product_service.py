@@ -4,8 +4,10 @@ from typing import Any, Self
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.models.product import Product
+from app.services.typesense_service import search_products as _typesense_search
 
 SORT_COLUMNS = {
     "price": Product.price,
@@ -133,6 +135,27 @@ def search_products(
     is_featured: bool | None = None,
     in_stock: bool | None = None,
 ):
+    if settings.TYPESENSE_ENABLED and q:
+        category_name = None
+        if category_id is not None:
+            from app.models.category import Category
+            cat = db.query(Category).filter(Category.id == category_id).first()
+            category_name = cat.name if cat else None
+
+        products, total = search_products_typesense(
+            db=db, q=q, category=category_name,
+            in_stock=in_stock, min_price=min_price, max_price=max_price,
+            min_rating=min_rating, min_discount=min_discount,
+            sort_by=sort_by, sort_order=sort_order,
+            limit=skip + limit,
+        )
+
+        if is_featured is not None:
+            products = [p for p in products if p.is_featured == is_featured]
+
+        total = len(products)
+        return products[skip:skip + limit], total
+
     items, total = (
         ProductQueryBuilder(db)
         .with_search(q)
@@ -160,6 +183,41 @@ def search_products(
             .paginate(skip, limit)
         )
     return items, total
+
+
+def search_products_typesense(
+    db: Session,
+    q: str,
+    category: str | None = None,
+    in_stock: bool | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+    min_rating: float | None = None,
+    min_discount: float | None = None,
+    sort_by: str = "",
+    sort_order: str = "asc",
+    limit: int = 20,
+) -> tuple[list[Product], int]:
+    docs, total = _typesense_search(
+        query=q, category=category,
+        in_stock=in_stock, min_price=min_price, max_price=max_price,
+        min_rating=min_rating, min_discount=min_discount,
+        sort_by=sort_by, sort_order=sort_order,
+        per_page=limit,
+    )
+    if not docs:
+        return [], 0
+    ids = [int(d["id"]) for d in docs]
+    seen = set()
+    products = []
+    for pid in ids:
+        if pid in seen:
+            continue
+        seen.add(pid)
+        p = db.query(Product).filter(Product.id == pid).first()
+        if p:
+            products.append(p)
+    return products, total
 
 
 def get_featured_products(db: Session, skip: int = 0, limit: int = 8):

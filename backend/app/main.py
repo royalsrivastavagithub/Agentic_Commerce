@@ -15,6 +15,8 @@ from app.core.limiter import limiter
 from app.db.session import engine, Base
 from app.models.user import User
 from app.core.security import get_password_hash, create_access_token
+from app.services.typesense_service import ensure_collection, reindex_all
+from app.db.session import SessionLocal as _SessionLocal
 
 
 def _seed_users():
@@ -62,6 +64,18 @@ def _seed_users():
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     _seed_users()
+    if settings.TYPESENSE_ENABLED:
+        if ensure_collection():
+            from app.db.session import SessionLocal
+            from app.models.product import Product
+            db = SessionLocal()
+            try:
+                total = db.query(Product).count()
+                if total > 0:
+                    count = reindex_all(db)
+                    print(f"Typesense auto-indexed {count} products")
+            finally:
+                db.close()
     yield
 
 

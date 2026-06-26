@@ -74,4 +74,26 @@ class Settings(BaseSettings):
         description="Rate limit per minute for auth endpoints"
     )
 
+    # Typesense search configuration
+    TYPESENSE_ENABLED: bool = Field(
+        default=False,
+        description="Enable Typesense search instead of SQL ILIKE"
+    )
+    TYPESENSE_HOST: str = Field(
+        default="localhost",
+        description="Typesense server hostname"
+    )
+    TYPESENSE_PORT: str = Field(
+        default="8108",
+        description="Typesense server port"
+    )
+    TYPESENSE_PROTOCOL: str = Field(
+        default="http",
+        description="Typesense server protocol (http or https)"
+    )
+    TYPESENSE_API_KEY: str = Field(
+        default="",
+        description="Typesense API key for authentication"
+    )
+
 settings = Settings()
