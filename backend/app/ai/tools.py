@@ -53,12 +53,29 @@ def _tied_top(items: list[Product], attr: str, top_n: int = 10) -> tuple[list[Pr
     elif len(tied) <= 3:
         label = f"tie: {'; '.join(p.title for p in tied)}"
     else:
-        label = f"{len(tied)} products tied"
+        label = f"{len(tied)} products tied at {top_val}"
     return tied, label
 
 
 def _short_ids(ids: list[int]) -> str:
     return ", ".join(str(i) for i in ids[:5])
+
+
+def _sort_guard(search_query: str, category: str | None) -> dict | None:
+    if not search_query and not category:
+        return {"message": "Please specify what to search for.", "product_ids": []}
+    return None
+
+
+def _fmt_tool_message(label: str, tied: list, attr_display: str) -> str:
+    if len(tied) > 3:
+        return label
+    val = getattr(tied[0], attr_display)
+    if attr_display == "price":
+        return f"{label} (${val})"
+    if attr_display == "discount_percentage":
+        return f"{label} ({val}% off)"
+    return f"{label} ({val})"
 
 
 def make_context_tools(db: Session, user: User) -> list:
@@ -72,13 +89,14 @@ def make_context_tools(db: Session, user: User) -> list:
         min_price: float | None = None,
         max_price: float | None = None,
         min_rating: float | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
         """Search products by keyword with optional filters. Returns matching product IDs."""
         search_query, category_id = _make_context(db, query, category)
         items, total = _search_products(
             db=db, q=search_query, category_id=category_id,
             min_price=min_price, max_price=max_price, min_rating=min_rating,
-            limit=10,
+            in_stock=in_stock, limit=10,
         )
         if not items:
             return {"message": "No products found.", "product_ids": []}
@@ -96,6 +114,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find the highest rated products by optional keyword. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             max_price=max_price, min_rating=min_rating,
@@ -105,7 +126,8 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "rating")
         ids = [p.id for p in tied]
-        return {"message": f"Highest rated: {label} (id={ids[0]}, rating={tied[0].rating})", "product_ids": ids}
+        msg = _fmt_tool_message(f"Highest rated: {label}", tied, "rating")
+        return {"message": msg, "product_ids": ids}
 
     @tool
     def lowest_rated(
@@ -115,6 +137,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find the lowest rated products by optional keyword. Returns tied-for-bottom product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             max_price=max_price,
@@ -124,7 +149,8 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "rating")
         ids = [p.id for p in tied]
-        return {"message": f"Lowest rated: {label} (id={ids[0]}, rating={tied[0].rating})", "product_ids": ids}
+        msg = _fmt_tool_message(f"Lowest rated: {label}", tied, "rating")
+        return {"message": msg, "product_ids": ids}
 
     @tool
     def most_expensive(
@@ -133,6 +159,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find the most expensive products by optional keyword. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             sort_by="price", sort_order="desc", limit=20,
@@ -141,7 +170,8 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "price")
         ids = [p.id for p in tied]
-        return {"message": f"Most expensive: {label} (id={ids[0]}, ${tied[0].price})", "product_ids": ids}
+        msg = _fmt_tool_message(f"Most expensive: {label}", tied, "price")
+        return {"message": msg, "product_ids": ids}
 
     @tool
     def cheapest(
@@ -150,6 +180,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find the cheapest products by optional keyword. Returns tied-for-bottom product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             sort_by="price", sort_order="asc", limit=20,
@@ -158,7 +191,8 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "price")
         ids = [p.id for p in tied]
-        return {"message": f"Cheapest: {label} (id={ids[0]}, ${tied[0].price})", "product_ids": ids}
+        msg = _fmt_tool_message(f"Cheapest: {label}", tied, "price")
+        return {"message": msg, "product_ids": ids}
 
     @tool
     def best_discount(
@@ -167,6 +201,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find products with the best discounts by optional keyword. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             sort_by="discount", sort_order="desc", limit=20,
@@ -175,7 +212,8 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "discount_percentage")
         ids = [p.id for p in tied]
-        return {"message": f"Best discount: {label} (id={ids[0]}, {tied[0].discount_percentage}% off)", "product_ids": ids}
+        msg = _fmt_tool_message(f"Best discount: {label}", tied, "discount_percentage")
+        return {"message": msg, "product_ids": ids}
 
     @tool
     def most_reviewed(
@@ -184,6 +222,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find the most reviewed products by optional keyword. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             sort_by="review_count", sort_order="desc", limit=20,
@@ -192,7 +233,8 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "review_count")
         ids = [p.id for p in tied]
-        return {"message": f"Most reviewed: {label} (id={ids[0]}, reviews={tied[0].review_count})", "product_ids": ids}
+        msg = _fmt_tool_message(f"Most reviewed: {label}", tied, "review_count")
+        return {"message": msg, "product_ids": ids}
 
     @tool
     def least_reviewed(
@@ -201,6 +243,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find the least reviewed products by optional keyword. Returns tied-for-bottom product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             sort_by="review_count", sort_order="asc", limit=20,
@@ -209,7 +254,8 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "review_count")
         ids = [p.id for p in tied]
-        return {"message": f"Least reviewed: {label} (id={ids[0]}, reviews={tied[0].review_count})", "product_ids": ids}
+        msg = _fmt_tool_message(f"Least reviewed: {label}", tied, "review_count")
+        return {"message": msg, "product_ids": ids}
 
     @tool
     def newest_arrivals(
@@ -218,6 +264,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find the newest product arrivals by optional keyword. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             sort_by="created_at", sort_order="desc", limit=20,
@@ -226,7 +275,7 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "id")
         ids = [p.id for p in tied]
-        return {"message": f"Newest: {label} (id={ids[0]})", "product_ids": ids}
+        return {"message": f"Newest: {label}", "product_ids": ids}
 
     @tool
     def highest_stock(
@@ -235,6 +284,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find products with the most stock by optional keyword. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             sort_by="stock", sort_order="desc", limit=20,
@@ -243,7 +295,8 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "stock")
         ids = [p.id for p in tied]
-        return {"message": f"Highest stock: {label} (id={ids[0]}, stock={tied[0].stock})", "product_ids": ids}
+        msg = _fmt_tool_message(f"Highest stock: {label}", tied, "stock")
+        return {"message": msg, "product_ids": ids}
 
     @tool
     def lowest_stock(
@@ -252,6 +305,9 @@ def make_context_tools(db: Session, user: User) -> list:
     ) -> dict:
         """Find products with the lowest stock by optional keyword. Returns tied-for-bottom product IDs."""
         search_query, category_id = _make_context(db, query, category)
+        guard = _sort_guard(search_query, category)
+        if guard:
+            return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
             sort_by="stock", sort_order="asc", limit=20,
@@ -260,7 +316,8 @@ def make_context_tools(db: Session, user: User) -> list:
             return {"message": "No products found.", "product_ids": []}
         tied, label = _tied_top(items, "stock")
         ids = [p.id for p in tied]
-        return {"message": f"Lowest stock: {label} (id={ids[0]}, stock={tied[0].stock})", "product_ids": ids}
+        msg = _fmt_tool_message(f"Lowest stock: {label}", tied, "stock")
+        return {"message": msg, "product_ids": ids}
 
     # ── Product info ───────────────────────────────────────
 
@@ -325,7 +382,7 @@ def make_context_tools(db: Session, user: User) -> list:
             "items": items,
             "total": round(total, 2),
             "product_ids": product_ids,
-            "message": f"Your cart has {len(items)} item(s) totaling ${total:.2f}.",
+            "message": f"Cart: {len(items)} item(s), ${total:.2f} total.",
         }
 
     @tool

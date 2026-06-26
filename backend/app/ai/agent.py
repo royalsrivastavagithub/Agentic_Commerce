@@ -156,8 +156,9 @@ def run_chat(
                 if pid and pid not in product_ids:
                     product_ids.append(pid)
 
+            msg_content = {k: v for k, v in tool_result.items() if k != "items"}
             messages.append(ToolMessage(
-                content=json.dumps(tool_result, default=str),
+                content=json.dumps(msg_content, default=str),
                 tool_call_id=tc["id"],
             ))
         _log_messages(messages, f"after_iteration_{iteration + 1}")

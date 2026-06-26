@@ -64,6 +64,13 @@ class ProductQueryBuilder:
             self._query = self._query.filter(Product.is_featured.is_(is_featured))
         return self
 
+    def with_availability(self, in_stock: bool | None) -> Self:
+        if in_stock is True:
+            self._query = self._query.filter(Product.availability_status == "In Stock")
+        elif in_stock is False:
+            self._query = self._query.filter(Product.availability_status != "In Stock")
+        return self
+
     def sort_by(self, field: str = "", order: str = "asc") -> Self:
         col = SORT_COLUMNS.get(field, Product.id)
         self._query = self._query.order_by(col.desc() if order == "desc" else col.asc())
@@ -96,6 +103,7 @@ def list_products(
     min_rating: float | None = None,
     min_discount: float | None = None,
     is_featured: bool | None = None,
+    in_stock: bool | None = None,
 ):
     return (
         ProductQueryBuilder(db)
@@ -104,6 +112,7 @@ def list_products(
         .with_min_rating(min_rating)
         .with_min_discount(min_discount)
         .with_featured(is_featured)
+        .with_availability(in_stock)
         .sort_by(sort_by, sort_order)
         .paginate(skip, limit)
     )
@@ -122,6 +131,7 @@ def search_products(
     min_rating: float | None = None,
     min_discount: float | None = None,
     is_featured: bool | None = None,
+    in_stock: bool | None = None,
 ):
     items, total = (
         ProductQueryBuilder(db)
@@ -131,6 +141,7 @@ def search_products(
         .with_min_rating(min_rating)
         .with_min_discount(min_discount)
         .with_featured(is_featured)
+        .with_availability(in_stock)
         .sort_by(sort_by, sort_order)
         .paginate(skip, limit)
     )
@@ -144,6 +155,7 @@ def search_products(
             .with_min_rating(min_rating)
             .with_min_discount(min_discount)
             .with_featured(is_featured)
+            .with_availability(in_stock)
             .sort_by(sort_by, sort_order)
             .paginate(skip, limit)
         )
