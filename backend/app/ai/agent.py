@@ -87,21 +87,27 @@ def run_chat(
     messages = [SystemMessage(content=SYSTEM_PROMPT + intent_context)]
 
     prev_ids: list[int] = []
+    last_assistant_ids = []
     for h in history:
         if h["role"] == "assistant" and h.get("product_ids"):
             prev_ids.extend(h["product_ids"])
+            last_assistant_ids = h["product_ids"]
 
     if prev_ids:
-        unique = list(dict.fromkeys(prev_ids))[-8:]
+        unique = list(dict.fromkeys(prev_ids))
+        recent = list(dict.fromkeys(last_assistant_ids)) or unique[-5:]
         mappings = []
-        for pid in unique:
+        for pid in recent:
             try:
                 p = _get_product_by_id(db, pid)
                 mappings.append(f"{p.title} (id={pid})")
             except Exception:
                 mappings.append(f"id={pid}")
-        context = "Products in context: " + "; ".join(mappings)
-        messages.append(SystemMessage(content=context))
+        if mappings:
+            context = "Products in context: " + "; ".join(mappings)
+            messages.append(SystemMessage(content=context))
+        else:
+            messages.append(SystemMessage(content="No previous search context."))
     else:
         messages.append(SystemMessage(content="No previous search context."))
 
@@ -117,7 +123,9 @@ def run_chat(
     _log_messages(messages, f"initial (intent={intent})")
 
     product_ids: list[int] = []
+    cart_items_map: dict[int, dict] = {}
     response_text = ""
+    last_tool_message = ""
 
     for iteration in range(6):
         print(f"\n--- Iteration {iteration + 1} (intent={intent}) ---")
@@ -129,7 +137,10 @@ def run_chat(
         if not result.tool_calls:
             response_text = (result.content or "").strip()
             if not response_text:
-                response_text = "Sorry, I couldn't process that. Please try rephrasing."
+                if last_tool_message:
+                    response_text = last_tool_message
+                else:
+                    response_text = "Sorry, I couldn't process that. Please try rephrasing."
             break
 
         messages.append(result)
@@ -147,6 +158,14 @@ def run_chat(
                         tool_result = {"error": str(e)}
                     break
 
+            if tc["name"] == "get_cart_summary":
+                for item in tool_result.get("items", []):
+                    cart_items_map[item["product_id"]] = {
+                        "cart_qty": item["quantity"],
+                        "cart_subtotal": item["subtotal"],
+                        "cart_unit_price": item["unit_price"],
+                    }
+
             print(f"Tool '{tc['name']}' result: {json.dumps(tool_result, default=str)[:300]}")
 
             if "product_ids" in tool_result:
@@ -156,7 +175,12 @@ def run_chat(
                 if pid and pid not in product_ids:
                     product_ids.append(pid)
 
-            msg_content = {k: v for k, v in tool_result.items() if k != "items"}
+            strip_keys = {"items"}
+            if tc["name"] == "get_cart_summary":
+                strip_keys |= {"product_ids", "total"}
+            msg_content = {k: v for k, v in tool_result.items() if k not in strip_keys}
+            if "message" in msg_content:
+                last_tool_message = msg_content["message"]
             messages.append(ToolMessage(
                 content=json.dumps(msg_content, default=str),
                 tool_call_id=tc["id"],
@@ -170,4 +194,9 @@ def run_chat(
     add_message(db, conversation.id, "assistant", response_text, product_ids=product_ids)
 
     products = _lookup_products(db, product_ids)
+    if cart_items_map:
+        for p in products:
+            ci = cart_items_map.get(p["id"])
+            if ci:
+                p.update(ci)
     return response_text, products, conversation.id

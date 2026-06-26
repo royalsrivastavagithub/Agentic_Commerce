@@ -57,9 +57,6 @@ def _tied_top(items: list[Product], attr: str, top_n: int = 10) -> tuple[list[Pr
     return tied, label
 
 
-def _short_ids(ids: list[int]) -> str:
-    return ", ".join(str(i) for i in ids[:5])
-
 
 def _sort_guard(search_query: str, category: str | None) -> dict | None:
     if not search_query and not category:
@@ -91,7 +88,7 @@ def make_context_tools(db: Session, user: User) -> list:
         min_rating: float | None = None,
         in_stock: bool | None = None,
     ) -> dict:
-        """Search products by keyword with optional filters. Returns matching product IDs."""
+        """Search products by keyword with optional filters. Set in_stock=True for in-stock only, False for out-of-stock only. Returns matching product IDs."""
         search_query, category_id = _make_context(db, query, category)
         items, total = _search_products(
             db=db, q=search_query, category_id=category_id,
@@ -101,7 +98,7 @@ def make_context_tools(db: Session, user: User) -> list:
         if not items:
             return {"message": "No products found.", "product_ids": []}
         ids = [p.id for p in items]
-        return {"message": f"Found {total}: ids=[{_short_ids(ids)}]", "product_ids": ids}
+        return {"message": f"Found {total} results.", "product_ids": ids}
 
     # ── Sort tools (tie-aware) ──────────────────────────────
 
@@ -111,15 +108,16 @@ def make_context_tools(db: Session, user: User) -> list:
         category: str | None = None,
         max_price: float | None = None,
         min_rating: float | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find the highest rated products by optional keyword. Returns tied-for-top product IDs."""
+        """Find the highest rated products by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
-            max_price=max_price, min_rating=min_rating,
+            max_price=max_price, min_rating=min_rating, in_stock=in_stock,
             sort_by="rating", sort_order="desc", limit=20,
         )
         if not items:
@@ -134,15 +132,16 @@ def make_context_tools(db: Session, user: User) -> list:
         query: str | None = None,
         category: str | None = None,
         max_price: float | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find the lowest rated products by optional keyword. Returns tied-for-bottom product IDs."""
+        """Find the lowest rated products by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-bottom product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
-            max_price=max_price,
+            max_price=max_price, in_stock=in_stock,
             sort_by="rating", sort_order="asc", limit=20,
         )
         if not items:
@@ -156,14 +155,16 @@ def make_context_tools(db: Session, user: User) -> list:
     def most_expensive(
         query: str | None = None,
         category: str | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find the most expensive products by optional keyword. Returns tied-for-top product IDs."""
+        """Find the most expensive products by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
+            in_stock=in_stock,
             sort_by="price", sort_order="desc", limit=20,
         )
         if not items:
@@ -177,14 +178,16 @@ def make_context_tools(db: Session, user: User) -> list:
     def cheapest(
         query: str | None = None,
         category: str | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find the cheapest products by optional keyword. Returns tied-for-bottom product IDs."""
+        """Find the cheapest products by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-bottom product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
+            in_stock=in_stock,
             sort_by="price", sort_order="asc", limit=20,
         )
         if not items:
@@ -198,14 +201,16 @@ def make_context_tools(db: Session, user: User) -> list:
     def best_discount(
         query: str | None = None,
         category: str | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find products with the best discounts by optional keyword. Returns tied-for-top product IDs."""
+        """Find products with the best discounts by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
+            in_stock=in_stock,
             sort_by="discount", sort_order="desc", limit=20,
         )
         if not items:
@@ -219,14 +224,16 @@ def make_context_tools(db: Session, user: User) -> list:
     def most_reviewed(
         query: str | None = None,
         category: str | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find the most reviewed products by optional keyword. Returns tied-for-top product IDs."""
+        """Find the most reviewed products by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
+            in_stock=in_stock,
             sort_by="review_count", sort_order="desc", limit=20,
         )
         if not items:
@@ -240,14 +247,16 @@ def make_context_tools(db: Session, user: User) -> list:
     def least_reviewed(
         query: str | None = None,
         category: str | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find the least reviewed products by optional keyword. Returns tied-for-bottom product IDs."""
+        """Find the least reviewed products by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-bottom product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
+            in_stock=in_stock,
             sort_by="review_count", sort_order="asc", limit=20,
         )
         if not items:
@@ -261,14 +270,16 @@ def make_context_tools(db: Session, user: User) -> list:
     def newest_arrivals(
         query: str | None = None,
         category: str | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find the newest product arrivals by optional keyword. Returns tied-for-top product IDs."""
+        """Find the newest product arrivals by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
+            in_stock=in_stock,
             sort_by="created_at", sort_order="desc", limit=20,
         )
         if not items:
@@ -281,14 +292,16 @@ def make_context_tools(db: Session, user: User) -> list:
     def highest_stock(
         query: str | None = None,
         category: str | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find products with the most stock by optional keyword. Returns tied-for-top product IDs."""
+        """Find products with the most stock by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-top product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
+            in_stock=in_stock,
             sort_by="stock", sort_order="desc", limit=20,
         )
         if not items:
@@ -302,14 +315,16 @@ def make_context_tools(db: Session, user: User) -> list:
     def lowest_stock(
         query: str | None = None,
         category: str | None = None,
+        in_stock: bool | None = None,
     ) -> dict:
-        """Find products with the lowest stock by optional keyword. Returns tied-for-bottom product IDs."""
+        """Find products with the lowest stock by optional keyword. Pass in_stock=True/False to filter by availability. Returns tied-for-bottom product IDs."""
         search_query, category_id = _make_context(db, query, category)
         guard = _sort_guard(search_query, category)
         if guard:
             return guard
         items, _ = _search_products(
             db=db, q=search_query, category_id=category_id,
+            in_stock=in_stock,
             sort_by="stock", sort_order="asc", limit=20,
         )
         if not items:
@@ -349,7 +364,7 @@ def make_context_tools(db: Session, user: User) -> list:
         try:
             p = _get_product_by_id(db, product_id)
             _add_cart_item(db, user.id, product_id, quantity)
-            return {"success": True, "message": f"Added {quantity} × {p.title} (id={product_id}) to your cart.", "product_id": product_id}
+            return {"success": True, "message": f"Added {quantity} × {p.title} to your cart.", "product_id": product_id}
         except (BadRequestError, NotFoundError) as e:
             return {"success": False, "message": str(e)}
 

@@ -50,6 +50,9 @@ export interface Product {
   thumbnail: string
   is_featured: boolean
   discountPercentage?: number
+  cart_qty?: number
+  cart_subtotal?: number
+  cart_unit_price?: number
 }
 
 export interface ProductListResponse {

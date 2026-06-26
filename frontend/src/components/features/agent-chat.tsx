@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/auth-store"
 import { Send, Bot, User, Loader2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProductCard } from "@/components/ui/product-card"
+import { CartSummary } from "@/components/ui/cart-summary"
 import type { Product, ChatResponse } from "@/types/api"
 
 interface Message {
@@ -125,9 +126,13 @@ export function AgentChat() {
                     </div>
                     {msg.products && msg.products.length > 0 && (
                       <div className="mt-3 space-y-3">
-                        {msg.products.map((p) => (
-                          <ProductCard key={p.id} product={p} newTab />
-                        ))}
+                        {msg.products.some((p) => p.cart_qty) ? (
+                          <CartSummary products={msg.products} />
+                        ) : (
+                          msg.products.map((p) => (
+                            <ProductCard key={p.id} product={p} newTab />
+                          ))
+                        )}
                       </div>
                     )}
                   </>
